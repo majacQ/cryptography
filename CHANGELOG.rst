@@ -1,6 +1,7 @@
 Changelog
 =========
 
+  <<<<<<< 2.9.x
 .. _v2-9-2:
 
 2.9.2 - 2020-04-22
@@ -190,6 +191,8 @@ Changelog
   :meth:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicNumbers.encode_point`.
 
 
+  =======
+  >>>>>>> 2.4.x
 .. _v2-4-2:
 
 2.4.2 - 2018-11-21
