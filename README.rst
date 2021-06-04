@@ -12,13 +12,16 @@ pyca/cryptography
 .. image:: https://travis-ci.org/pyca/cryptography.svg?branch=master
     :target: https://travis-ci.org/pyca/cryptography
 
+.. image:: https://github.com/pyca/cryptography/workflows/CI/badge.svg?branch=master
+    :target: https://github.com/pyca/cryptography/actions?query=workflow%3ACI+branch%3Amaster
+
 .. image:: https://codecov.io/github/pyca/cryptography/coverage.svg?branch=master
     :target: https://codecov.io/github/pyca/cryptography?branch=master
 
 
 ``cryptography`` is a package which provides cryptographic recipes and
 primitives to Python developers.  Our goal is for it to be your "cryptographic
-standard library". It supports Python 2.7, Python 3.4+, and PyPy 5.3+.
+standard library". It supports Python 2.7, Python 3.5+, and PyPy 5.4+.
 
 ``cryptography`` includes both high level recipes and low level interfaces to
 common cryptographic algorithms such as symmetric ciphers, message digests, and

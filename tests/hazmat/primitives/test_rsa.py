@@ -89,7 +89,7 @@ def _build_oaep_sha2_vectors():
             load_vectors_from_file(
                 os.path.join(
                     base_path,
-                    "oaep-{0}-{1}.txt".format(
+                    "oaep-{}-{}.txt".format(
                         mgf1alg.name, oaepalg.name
                     )
                 ),
@@ -112,7 +112,7 @@ def _skip_pss_hash_algorithm_unsupported(backend, hash_alg):
         )
     ):
         pytest.skip(
-            "Does not support {0} in MGF1 using PSS.".format(hash_alg.name)
+            "Does not support {} in MGF1 using PSS.".format(hash_alg.name)
         )
 
 
@@ -2062,6 +2062,20 @@ class TestRSAPrivateKeySerialization(object):
         assert loaded_priv_num == priv_num
 
     @pytest.mark.parametrize(
+        ("encoding", "fmt"),
+        [
+            (serialization.Encoding.Raw, serialization.PrivateFormat.PKCS8),
+            (serialization.Encoding.DER, serialization.PrivateFormat.Raw),
+            (serialization.Encoding.Raw, serialization.PrivateFormat.Raw),
+            (serialization.Encoding.X962, serialization.PrivateFormat.PKCS8),
+        ]
+    )
+    def test_private_bytes_rejects_invalid(self, encoding, fmt, backend):
+        key = RSA_KEY_2048.private_key(backend)
+        with pytest.raises(ValueError):
+            key.private_bytes(encoding, fmt, serialization.NoEncryption())
+
+    @pytest.mark.parametrize(
         ("fmt", "password"),
         [
             [serialization.PrivateFormat.PKCS8, b"s"],
@@ -2286,3 +2300,30 @@ class TestRSAPEMPublicKeySerialization(object):
         key = RSA_KEY_2048.private_key(backend).public_key()
         with pytest.raises(TypeError):
             key.public_bytes(serialization.Encoding.PEM, "invalidformat")
+
+    @pytest.mark.parametrize(
+        ("encoding", "fmt"),
+        [
+            (
+                serialization.Encoding.Raw,
+                serialization.PublicFormat.SubjectPublicKeyInfo
+            ),
+            (serialization.Encoding.Raw, serialization.PublicFormat.PKCS1),
+        ] + list(itertools.product(
+            [
+                serialization.Encoding.Raw,
+                serialization.Encoding.X962,
+                serialization.Encoding.PEM,
+                serialization.Encoding.DER
+            ],
+            [
+                serialization.PublicFormat.Raw,
+                serialization.PublicFormat.UncompressedPoint,
+                serialization.PublicFormat.CompressedPoint
+            ]
+        ))
+    )
+    def test_public_bytes_rejects_invalid(self, encoding, fmt, backend):
+        key = RSA_KEY_2048.private_key(backend).public_key()
+        with pytest.raises(ValueError):
+            key.public_bytes(encoding, fmt)

@@ -3,6 +3,8 @@
 set -e
 set -x
 
+SCRIPT_DIR=$(dirname "${BASH_SOURCE[0]}")
+
 shlib_sed() {
     # modify the shlib version to a unique one to make sure the dynamic
     # linker doesn't load the system one.
@@ -14,12 +16,12 @@ shlib_sed() {
 # download, compile, and install if it's not already present via travis
 # cache
 if [ -n "${OPENSSL}" ]; then
-    OPENSSL_DIR="ossl-2/${OPENSSL}"
+    . "$SCRIPT_DIR/openssl_config.sh"
     if [[ ! -f "$HOME/$OPENSSL_DIR/bin/openssl" ]]; then
         curl -O "https://www.openssl.org/source/openssl-${OPENSSL}.tar.gz"
         tar zxf "openssl-${OPENSSL}.tar.gz"
         pushd "openssl-${OPENSSL}"
-        ./config shared no-ssl2 no-ssl3 -fPIC --prefix="$HOME/$OPENSSL_DIR"
+        ./config $OPENSSL_CONFIG_FLAGS -fPIC --prefix="$HOME/$OPENSSL_DIR"
         shlib_sed
         make depend
         make -j"$(nproc)"
@@ -51,16 +53,17 @@ if [ -n "${DOCKER}" ]; then
         echo "OPENSSL and LIBRESSL are not allowed when DOCKER is set."
         exit 1
     fi
-    docker pull "$DOCKER"
+    docker pull "$DOCKER" || docker pull "$DOCKER" || docker pull "$DOCKER"
 fi
 
 if [ -z "${DOWNSTREAM}" ]; then
     git clone --depth=1 https://github.com/google/wycheproof "$HOME/wycheproof"
 fi
 
+pip install -U pip
 pip install virtualenv
 
 python -m virtualenv ~/.venv
 source ~/.venv/bin/activate
-# If we pin coverage it must be kept in sync with tox.ini and Jenkinsfile
+# If we pin coverage it must be kept in sync with tox.ini and azure-pipelines.yml
 pip install tox codecov coverage

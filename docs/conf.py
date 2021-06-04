@@ -176,14 +176,17 @@ epub_theme = 'epub'
 
 # Retry requests in the linkcheck builder so that we're resillient against
 # transient network errors.
-linkcheck_retries = 5
+linkcheck_retries = 10
+
+linkcheck_timeout = 5
 
 linkcheck_ignore = [
-    # Returns a 404 if you're not logged in
-    (
-        "https://ci.cryptography.io/"
-        "job/cryptography-support-jobs/job/openssl-release-1.1/"
-    ),
     # Small DH key results in a TLS failure on modern OpenSSL
-    "https://info.isl.ntt.co.jp/crypt/eng/camellia/",
+    r"https://info.isl.ntt.co.jp/crypt/eng/camellia/",
+    # Inconsistent small DH params they seem incapable of fixing
+    r"https://www.secg.org/sec1-v2.pdf",
+    # 403ing from Travis
+    r"https://devblogs.microsoft.com/oldnewthing/\?p=4223",
+    # Incomplete cert chain
+    r"https://cveform.mitre.org/",
 ]

@@ -1,9 +1,12 @@
 - [ ] Windows
-    - [ ] Run the `openssl-release-1.1` Jenkins job
-    - [ ] Copy the resulting artifacts to the Windows builders and unzip them in the root of the file system
+    - [ ] Send a pull request to `pyca/infra` updating the [version and hash](https://github.com/pyca/infra/blob/master/.github/workflows/build-openssl.yml#L36-L37)
+    - [ ] Wait for it to be merged
+    - [ ] Wait for the Github Actions job to complete
 - [ ] macOS
     - [ ] Send a pull request to `homebrew` upgrading the `openssl@1.1` formula
     - [ ] Wait for it to be merged
-    - [ ] Run the `update-brew-openssl` Jenkins job
-- [ ] manylinux1
-    - [ ] Send a pull request to `pyca/infra` updating the [version and hash](https://github.com/pyca/infra/blob/master/cryptography-manylinux1/install_openssl.sh#L5-L6)
+- [ ] manylinux
+    - [ ] Send a pull request to `pyca/infra` updating the [version and hash](https://github.com/pyca/infra/blob/master/cryptography-manylinux/install_openssl.sh#L5-L6) for `manylinux`
+    - [ ] Wait for it to be merged
+    - [ ] Wait for the Github Actions job to complete
+- [ ] Changelog entry

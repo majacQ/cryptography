@@ -36,7 +36,7 @@ def _skip_if_dsa_not_supported(backend, algorithm, p, q, g):
         not backend.dsa_hash_supported(algorithm)
     ):
         pytest.skip(
-            "{0} does not support the provided parameters".format(backend)
+            "{} does not support the provided parameters".format(backend)
         )
 
 
@@ -714,6 +714,20 @@ class TestDSASerialization(object):
         assert loaded_priv_num == priv_num
 
     @pytest.mark.parametrize(
+        ("encoding", "fmt"),
+        [
+            (serialization.Encoding.Raw, serialization.PrivateFormat.PKCS8),
+            (serialization.Encoding.DER, serialization.PrivateFormat.Raw),
+            (serialization.Encoding.Raw, serialization.PrivateFormat.Raw),
+            (serialization.Encoding.X962, serialization.PrivateFormat.PKCS8),
+        ]
+    )
+    def test_private_bytes_rejects_invalid(self, encoding, fmt, backend):
+        key = DSA_KEY_1024.private_key(backend)
+        with pytest.raises(ValueError):
+            key.private_bytes(encoding, fmt, serialization.NoEncryption())
+
+    @pytest.mark.parametrize(
         ("fmt", "password"),
         [
             [serialization.PrivateFormat.PKCS8, b"s"],
@@ -951,3 +965,30 @@ class TestDSAPEMPublicKeySerialization(object):
             key.public_bytes(
                 serialization.Encoding.PEM, serialization.PublicFormat.PKCS1
             )
+
+    @pytest.mark.parametrize(
+        ("encoding", "fmt"),
+        [
+            (
+                serialization.Encoding.Raw,
+                serialization.PublicFormat.SubjectPublicKeyInfo
+            ),
+            (serialization.Encoding.Raw, serialization.PublicFormat.PKCS1),
+        ] + list(itertools.product(
+            [
+                serialization.Encoding.Raw,
+                serialization.Encoding.X962,
+                serialization.Encoding.PEM,
+                serialization.Encoding.DER
+            ],
+            [
+                serialization.PublicFormat.Raw,
+                serialization.PublicFormat.UncompressedPoint,
+                serialization.PublicFormat.CompressedPoint
+            ]
+        ))
+    )
+    def test_public_bytes_rejects_invalid(self, encoding, fmt, backend):
+        key = DSA_KEY_2048.private_key(backend).public_key()
+        with pytest.raises(ValueError):
+            key.public_bytes(encoding, fmt)

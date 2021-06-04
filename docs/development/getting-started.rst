@@ -81,7 +81,7 @@ each supported Python version and run the tests. For example:
     ...
      py27: commands succeeded
     ERROR:   pypy: InterpreterNotFound: pypy
-     py34: commands succeeded
+     py38: commands succeeded
      docs: commands succeeded
      pep8: commands succeeded
 
@@ -115,5 +115,5 @@ The HTML documentation index can now be found at
 .. _`virtualenv`: https://pypi.org/project/virtualenv/
 .. _`pip`: https://pypi.org/project/pip/
 .. _`sphinx`: https://pypi.org/project/Sphinx/
-.. _`reStructured Text`: http://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
+.. _`reStructured Text`: https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
 .. _`this Github issue`: https://github.com/rfk/pyenchant/issues/42

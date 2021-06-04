@@ -80,6 +80,20 @@ class TestScrypt(object):
             Scrypt(salt, length, work_factor, block_size,
                    parallelization_factor, backend)
 
+    def test_scrypt_malloc_failure(self, backend):
+        password = b"NaCl"
+        work_factor = 1024 ** 3
+        block_size = 589824
+        parallelization_factor = 16
+        length = 64
+        salt = b"NaCl"
+
+        scrypt = Scrypt(salt, length, work_factor, block_size,
+                        parallelization_factor, backend)
+
+        with pytest.raises(MemoryError):
+            scrypt.derive(password)
+
     def test_password_not_bytes(self, backend):
         password = 1
         work_factor = 1024
@@ -93,6 +107,19 @@ class TestScrypt(object):
 
         with pytest.raises(TypeError):
             scrypt.derive(password)
+
+    def test_buffer_protocol(self, backend):
+        password = bytearray(b"password")
+        work_factor = 256
+        block_size = 8
+        parallelization_factor = 16
+        length = 10
+        salt = b"NaCl"
+
+        scrypt = Scrypt(salt, length, work_factor, block_size,
+                        parallelization_factor, backend)
+
+        assert scrypt.derive(password) == b'\xf4\x92\x86\xb2\x06\x0c\x848W\x87'
 
     @pytest.mark.parametrize("params", vectors)
     def test_verify(self, backend, params):

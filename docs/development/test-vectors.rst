@@ -23,7 +23,7 @@ for various cryptographic algorithms. These are not included in the repository
 continuous integration environments.
 
 We have ensured all test vectors are used as of commit
-``f89f4c53a8845fcefcdb9f14ee9191dbe167e3e3``.
+``c313761979d74b0417230eddd0f87d0cfab2b46b``.
 
 Asymmetric ciphers
 ~~~~~~~~~~~~~~~~~~
@@ -48,8 +48,9 @@ Asymmetric ciphers
   * `Botan's ECC private keys`_.
 * `asymmetric/public/PKCS1/dsa.pub.pem`_ is a PKCS1 DSA public key from the
   Ruby test suite.
-* X25519 test vectors from :rfc:`7748`.
+* X25519 and X448 test vectors from :rfc:`7748`.
 * RSA OAEP with custom label from the `BoringSSL evp tests`_.
+* Ed448 test vectors from :rfc:`8032`.
 
 
 Custom asymmetric vectors
@@ -85,6 +86,11 @@ Custom asymmetric vectors
 * ``asymmetric/PEM_Serialization/dsa_public_key.pem`` and
   ``asymmetric/DER_Serialization/dsa_public_key.der`` - Contains a DSA 2048 bit
   key generated using OpenSSL from ``dsa_private_key.pem``.
+* ``asymmetric/DER_Serialization/dsa_public_key_no_params.der`` - Contains a
+  DSA public key with the optional parameters removed.
+* ``asymmetric/DER_Serialization/dsa_public_key_invalid_bit_string.der`` -
+  Contains a DSA public key with the bit string padding value set to 2 rather
+  than the required 0.
 * ``asymmetric/PKCS8/unenc-dsa-pkcs8.pem`` and
   ``asymmetric/DER_Serialization/unenc-dsa-pkcs8.der`` - Contains a DSA 1024
   bit key generated using OpenSSL.
@@ -101,6 +107,36 @@ Custom asymmetric vectors
 * ``x509/custom/ca/ca_key.pem`` - An unencrypted PCKS8 ``secp256r1`` key. It is
   the private key for the certificate ``x509/custom/ca/ca.pem``. This key is
   encoded in several of the PKCS12 custom vectors.
+* ``asymmetric/EC/compressed_points.txt`` - Contains compressed public points
+  generated using OpenSSL.
+* ``asymmetric/X448/x448-pkcs8-enc.pem`` and
+  ``asymmetric/X448/x448-pkcs8-enc.der`` contain an X448 key encrypted with
+  AES 256 CBC with the password ``password``.
+* ``asymmetric/X448/x448-pkcs8.pem`` and ``asymmetric/X448/x448-pkcs8.der``
+  contain an unencrypted X448 key.
+* ``asymmetric/X448/x448-pub.pem`` and ``asymmetric/X448/x448-pub.der`` contain
+  an X448 public key.
+* ``asymmetric/Ed25519/ed25519-pkcs8-enc.pem`` and
+  ``asymmetric/Ed25519/ed25519-pkcs8-enc.der`` contain an Ed25519 key encrypted
+  with AES 256 CBC with the password ``password``.
+* ``asymmetric/Ed25519/ed25519-pkcs8.pem`` and
+  ``asymmetric/Ed25519/ed25519-pkcs8.der`` contain an unencrypted Ed25519 key.
+* ``asymmetric/Ed25519/ed25519-pub.pem`` and
+  ``asymmetric/Ed25519/ed25519-pub.der`` contain an Ed25519 public key.
+* ``asymmetric/X25519/x25519-pkcs8-enc.pem`` and
+  ``asymmetric/X25519/x25519-pkcs8-enc.der`` contain an X25519 key encrypted
+  with AES 256 CBC with the password ``password``.
+* ``asymmetric/X25519/x25519-pkcs8.pem`` and
+  ``asymmetric/X25519/x25519-pkcs8.der`` contain an unencrypted X25519 key.
+* ``asymmetric/X25519/x25519-pub.pem`` and ``asymmetric/X25519/x25519-pub.der``
+  contain an X25519 public key.
+* ``asymmetric/Ed448/ed448-pkcs8-enc.pem`` and
+  ``asymmetric/Ed448/ed448-pkcs8-enc.der`` contain an Ed448 key encrypted
+  with AES 256 CBC with the password ``password``.
+* ``asymmetric/Ed448/ed448-pkcs8.pem`` and
+  ``asymmetric/Ed448/ed448-pkcs8.der`` contain an unencrypted Ed448 key.
+* ``asymmetric/Ed448/ed448-pub.pem`` and ``asymmetric/Ed448/ed448-pub.der``
+  contain an Ed448 public key.
 
 
 Key exchange
@@ -137,7 +173,7 @@ Key exchange
   Diffie-Hellman parameters and key respectively. The keys were
   generated using OpenSSL following `DHKE`_ guide. When creating the
   parameters we added the `-pkeyopt dh_rfc5114:2` option to use
-  RFC5114 2048 bit DH parameters with 224 bit subgroup.
+  :rfc:`5114` 2048 bit DH parameters with 224 bit subgroup.
   ``vectors/cryptography_vectors/asymmetric/DH/dhkey_rfc5114_2.txt`` contains
   all parameter in text.
   ``vectors/cryptography_vectors/asymmetric/DH/dhp_rfc5114_2.der``,
@@ -200,6 +236,17 @@ X.509
   UTCTime in its validity->not_after.
 * ``letsencryptx3.pem`` - A subordinate certificate used by Let's Encrypt to
   issue end entity certificates.
+* ``ed25519-rfc8410.pem`` - A certificate containing an X25519 public key with
+  an ``ed25519`` signature taken from :rfc:`8410`.
+* ``root-ed25519.pem`` - An ``ed25519`` root certificate (``ed25519`` signature
+  with ``ed25519`` public key) from the OpenSSL test suite.
+  (`root-ed25519.pem`_)
+* ``server-ed25519-cert.pem`` - An ``ed25519`` server certificate (RSA
+  signature with ``ed25519`` public key) from the OpenSSL test suite.
+  (`server-ed25519-cert.pem`_)
+* ``server-ed448-cert.pem`` - An ``ed448`` server certificate (RSA
+  signature with ``ed448`` public key) from the OpenSSL test suite.
+  (`server-ed448-cert.pem`_)
 
 Custom X.509 Vectors
 ~~~~~~~~~~~~~~~~~~~~
@@ -357,6 +404,11 @@ Custom X.509 Vectors
 * ``ca/ca.pem`` - A self-signed certificate with ``basicConstraints`` set to
   true. Its private key is ``ca/ca_key.pem``. This certificate is encoded in
   several of the PKCS12 custom vectors.
+* ``negative_serial.pem`` - A certificate with a serial number that is a
+  negative number.
+* ``rsa_pss.pem`` - A certificate with an RSA PSS signature.
+* ``root-ed448.pem`` - An ``ed448`` self-signed CA certificate
+  using ``ed448-pkcs8.pem`` as key.
 
 Custom X.509 Request Vectors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -389,6 +441,8 @@ Custom X.509 Request Vectors
   critical.
 * ``invalid_signature.pem`` - A certificate signing request for an RSA
   1024 bit key containing an invalid signature with correct padding.
+* ``challenge.pem`` - A certificate signing request for an RSA 2048 bit key
+  containing a challenge password.
 
 Custom X.509 Certificate Revocation List Vectors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -461,6 +515,12 @@ X.509 OCSP Test Vectors
   revocation reason.
 * ``x509/ocsp/resp-revoked-no-next-update.der`` - An OCSP response that
   contains a revoked certificate and no ``nextUpdate`` value.
+* ``x509/ocsp/resp-invalid-signature-oid.der`` - An OCSP response that was
+  modified to contain an MD2 signature algorithm object identifier.
+* ``x509/ocsp/resp-single-extension-reason.der`` - An OCSP response that
+  contains a ``CRLReason`` single extension.
+* ``x509/ocsp/resp-sct-extension.der`` - An OCSP response containing a
+  ``CT Certificate SCTs`` single extension, from the SwissSign OCSP responder.
 
 Custom X.509 OCSP Test Vectors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -574,6 +634,11 @@ CMAC
 
 * AES-128, AES-192, AES-256, 3DES from `NIST SP-800-38B`_
 
+Poly1305
+~~~~~~~~
+
+* Test vectors from :rfc:`7539`.
+
 Creating test vectors
 ---------------------
 
@@ -645,3 +710,6 @@ header format (substituting the correct information):
 .. _`botan`: https://github.com/randombit/botan/blob/57789bdfc55061002b2727d0b32587612829a37c/src/tests/data/pubkey/dh.vec
 .. _`DHKE`: https://sandilands.info/sgordon/diffie-hellman-secret-key-exchange-with-openssl
 .. _`Botan's key wrap vectors`: https://github.com/randombit/botan/blob/737f33c09a18500e044dca3e2ae13bd2c08bafdd/src/tests/data/keywrap/nist_key_wrap.vec
+.. _`root-ed25519.pem`: https://github.com/openssl/openssl/blob/2a1e2fe145c6eb8e75aa2e1b3a8c3a49384b2852/test/certs/root-ed25519.pem
+.. _`server-ed25519-cert.pem`: https://github.com/openssl/openssl/blob/2a1e2fe145c6eb8e75aa2e1b3a8c3a49384b2852/test/certs/server-ed25519-cert.pem
+.. _`server-ed448-cert.pem`: https://github.com/openssl/openssl/blob/2a1e2fe145c6eb8e75aa2e1b3a8c3a49384b2852/test/certs/server-ed448-cert.pem

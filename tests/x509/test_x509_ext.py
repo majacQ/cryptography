@@ -9,6 +9,8 @@ import datetime
 import ipaddress
 import os
 
+import pretend
+
 import pytest
 
 import six
@@ -20,14 +22,17 @@ from cryptography.hazmat.backends.interfaces import (
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509 import DNSName, NameConstraints, SubjectAlternativeName
+from cryptography.x509.extensions import _key_identifier_from_public_key
+from cryptography.x509.general_name import _lazy_import_idna
 from cryptography.x509.oid import (
     AuthorityInformationAccessOID, ExtendedKeyUsageOID, ExtensionOID,
-    NameOID, ObjectIdentifier
+    NameOID, ObjectIdentifier, _OID_NAMES
 )
 
 from .test_x509 import _load_cert
 from ..hazmat.primitives.fixtures_rsa import RSA_KEY_2048
 from ..hazmat.primitives.test_ec import _skip_curve_unsupported
+from ..utils import load_vectors_from_file
 
 
 def _make_certbuilder(private_key):
@@ -42,6 +47,17 @@ def _make_certbuilder(private_key):
             .not_valid_before(datetime.datetime(1999, 1, 1))
             .not_valid_after(datetime.datetime(2020, 1, 1))
     )
+
+
+def test_lazy_idna_import():
+    try:
+        __import__("idna")
+        pytest.skip("idna is installed")
+    except ImportError:
+        pass
+
+    with pytest.raises(ImportError):
+        _lazy_import_idna()
 
 
 class TestExtension(object):
@@ -1123,16 +1139,14 @@ class TestAuthorityKeyIdentifier(object):
         if not six.PY2:
             assert repr(aki) == (
                 "<AuthorityKeyIdentifier(key_identifier=b'digest', authority_"
-                "cert_issuer=[<DirectoryName(value=<Name([<NameAttribute(oid="
-                "<ObjectIdentifier(oid=2.5.4.3, name=commonName)>, value='myC"
-                "N')>])>)>], authority_cert_serial_number=1234)>"
+                "cert_issuer=[<DirectoryName(value=<Name(CN=myCN)>)>], author"
+                "ity_cert_serial_number=1234)>"
             )
         else:
             assert repr(aki) == (
-                "<AuthorityKeyIdentifier(key_identifier='digest', authority_ce"
-                "rt_issuer=[<DirectoryName(value=<Name([<NameAttribute(oid=<Ob"
-                "jectIdentifier(oid=2.5.4.3, name=commonName)>, value=u'myCN')"
-                ">])>)>], authority_cert_serial_number=1234)>"
+                "<AuthorityKeyIdentifier(key_identifier='digest', authority_"
+                "cert_issuer=[<DirectoryName(value=<Name(CN=myCN)>)>], author"
+                "ity_cert_serial_number=1234)>"
             )
 
     def test_eq(self):
@@ -1581,12 +1595,80 @@ class TestSubjectKeyIdentifierExtension(object):
         )
         assert ext.value == ski
 
+    @pytest.mark.requires_backend_interface(interface=DSABackend)
+    @pytest.mark.requires_backend_interface(interface=X509Backend)
+    def test_invalid_bit_string_padding_from_public_key(self, backend):
+        data = load_vectors_from_file(
+            filename=os.path.join(
+                "asymmetric", "DER_Serialization",
+                "dsa_public_key_invalid_bit_string.der"
+            ), loader=lambda data: data.read(), mode="rb"
+        )
+        pretend_key = pretend.stub(public_bytes=lambda x, y: data)
+        with pytest.raises(ValueError):
+            _key_identifier_from_public_key(pretend_key)
+
+    @pytest.mark.requires_backend_interface(interface=DSABackend)
+    @pytest.mark.requires_backend_interface(interface=X509Backend)
+    def test_no_optional_params_allowed_from_public_key(self, backend):
+        data = load_vectors_from_file(
+            filename=os.path.join(
+                "asymmetric", "DER_Serialization",
+                "dsa_public_key_no_params.der"
+            ), loader=lambda data: data.read(), mode="rb"
+        )
+        pretend_key = pretend.stub(public_bytes=lambda x, y: data)
+        key_identifier = _key_identifier_from_public_key(pretend_key)
+        assert key_identifier == binascii.unhexlify(
+            b"24c0133a6a492f2c48a18c7648e515db5ac76749"
+        )
+
     @pytest.mark.requires_backend_interface(interface=EllipticCurveBackend)
     @pytest.mark.requires_backend_interface(interface=X509Backend)
     def test_from_ec_public_key(self, backend):
         _skip_curve_unsupported(backend, ec.SECP384R1())
         cert = _load_cert(
             os.path.join("x509", "ecdsa_root.pem"),
+            x509.load_pem_x509_certificate,
+            backend
+        )
+
+        ext = cert.extensions.get_extension_for_oid(
+            ExtensionOID.SUBJECT_KEY_IDENTIFIER
+        )
+        ski = x509.SubjectKeyIdentifier.from_public_key(
+            cert.public_key()
+        )
+        assert ext.value == ski
+
+    @pytest.mark.supported(
+        only_if=lambda backend: backend.ed25519_supported(),
+        skip_message="Requires OpenSSL with Ed25519 support"
+    )
+    @pytest.mark.requires_backend_interface(interface=X509Backend)
+    def test_from_ed25519_public_key(self, backend):
+        cert = _load_cert(
+            os.path.join("x509", "ed25519", "root-ed25519.pem"),
+            x509.load_pem_x509_certificate,
+            backend
+        )
+
+        ext = cert.extensions.get_extension_for_oid(
+            ExtensionOID.SUBJECT_KEY_IDENTIFIER
+        )
+        ski = x509.SubjectKeyIdentifier.from_public_key(
+            cert.public_key()
+        )
+        assert ext.value == ski
+
+    @pytest.mark.supported(
+        only_if=lambda backend: backend.ed448_supported(),
+        skip_message="Requires OpenSSL with Ed448 support"
+    )
+    @pytest.mark.requires_backend_interface(interface=X509Backend)
+    def test_from_ed448_public_key(self, backend):
+        cert = _load_cert(
+            os.path.join("x509", "ed448", "root-ed448.pem"),
             x509.load_pem_x509_certificate,
             backend
         )
@@ -1661,17 +1743,19 @@ class TestKeyUsageExtension(object):
 
 
 class TestDNSName(object):
-    def test_init(self):
-        name = x509.DNSName(u"*.xn--4ca7aey.example.com")
-        assert name.value == u"*.xn--4ca7aey.example.com"
-
-        with pytest.warns(utils.DeprecatedIn21):
+    def test_init_deprecated(self):
+        pytest.importorskip("idna")
+        with pytest.warns(utils.CryptographyDeprecationWarning):
             name = x509.DNSName(u".\xf5\xe4\xf6\xfc.example.com")
         assert name.value == u".xn--4ca7aey.example.com"
 
-        with pytest.warns(utils.DeprecatedIn21):
+        with pytest.warns(utils.CryptographyDeprecationWarning):
             name = x509.DNSName(u"\xf5\xe4\xf6\xfc.example.com")
         assert name.value == u"xn--4ca7aey.example.com"
+
+    def test_init(self):
+        name = x509.DNSName(u"*.xn--4ca7aey.example.com")
+        assert name.value == u"*.xn--4ca7aey.example.com"
 
         with pytest.raises(TypeError):
             x509.DNSName(1.3)
@@ -1705,16 +1789,7 @@ class TestDirectoryName(object):
     def test_repr(self):
         name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'value1')])
         gn = x509.DirectoryName(name)
-        if not six.PY2:
-            assert repr(gn) == (
-                "<DirectoryName(value=<Name([<NameAttribute(oid=<ObjectIdentif"
-                "ier(oid=2.5.4.3, name=commonName)>, value='value1')>])>)>"
-            )
-        else:
-            assert repr(gn) == (
-                "<DirectoryName(value=<Name([<NameAttribute(oid=<ObjectIdentif"
-                "ier(oid=2.5.4.3, name=commonName)>, value=u'value1')>])>)>"
-            )
+        assert repr(gn) == "<DirectoryName(value=<Name(CN=value1)>)>"
 
     def test_eq(self):
         name = x509.Name([
@@ -1788,7 +1863,8 @@ class TestRFC822Name(object):
         assert gn.value == u"administrator"
 
     def test_idna(self):
-        with pytest.warns(utils.DeprecatedIn21):
+        pytest.importorskip("idna")
+        with pytest.warns(utils.CryptographyDeprecationWarning):
             gn = x509.RFC822Name(u"email@em\xe5\xefl.com")
 
         assert gn.value == u"email@xn--eml-vla4c.com"
@@ -1827,7 +1903,8 @@ class TestUniformResourceIdentifier(object):
         assert gn.value == u"singlelabel:443/test"
 
     def test_idna_no_port(self):
-        with pytest.warns(utils.DeprecatedIn21):
+        pytest.importorskip("idna")
+        with pytest.warns(utils.CryptographyDeprecationWarning):
             gn = x509.UniformResourceIdentifier(
                 u"http://\u043f\u044b\u043a\u0430.cryptography"
             )
@@ -1835,7 +1912,8 @@ class TestUniformResourceIdentifier(object):
         assert gn.value == u"http://xn--80ato2c.cryptography"
 
     def test_idna_with_port(self):
-        with pytest.warns(utils.DeprecatedIn21):
+        pytest.importorskip("idna")
+        with pytest.warns(utils.CryptographyDeprecationWarning):
             gn = x509.UniformResourceIdentifier(
                 u"gopher://\u043f\u044b\u043a\u0430.cryptography:70/some/path"
             )
@@ -1849,7 +1927,8 @@ class TestUniformResourceIdentifier(object):
         assert gn.value == "ldap:///some-nonsense"
 
     def test_query_and_fragment(self):
-        with pytest.warns(utils.DeprecatedIn21):
+        pytest.importorskip("idna")
+        with pytest.warns(utils.CryptographyDeprecationWarning):
             gn = x509.UniformResourceIdentifier(
                 u"ldap://\u043f\u044b\u043a\u0430.cryptography:90/path?query="
                 u"true#somedata"
@@ -3189,11 +3268,18 @@ class TestAuthorityKeyIdentifierExtension(object):
         ext = cert.extensions.get_extension_for_oid(
             ExtensionOID.AUTHORITY_KEY_IDENTIFIER
         )
-        ski = issuer_cert.extensions.get_extension_for_class(
+        ski_ext = issuer_cert.extensions.get_extension_for_class(
             x509.SubjectKeyIdentifier
         )
+        # This was the incorrect arg we want to deprecate and remove
+        with pytest.warns(utils.CryptographyDeprecationWarning):
+            aki = x509.AuthorityKeyIdentifier.\
+                from_issuer_subject_key_identifier(ski_ext)
+            assert ext.value == aki
+
+        # Here's what we actually documented and want to do
         aki = x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(
-            ski
+            ski_ext.value
         )
         assert ext.value == aki
 
@@ -3638,22 +3724,16 @@ class TestDistributionPoint(object):
         if not six.PY2:
             assert repr(dp) == (
                 "<DistributionPoint(full_name=None, relative_name=<RelativeDis"
-                "tinguishedName([<NameAttribute(oid=<ObjectIdentifier(oid=2.5."
-                "4.3, name=commonName)>, value='myCN')>])>, reasons=frozenset("
-                "{<ReasonFlags.ca_compromise: 'cACompromise'>}), crl_issuer=[<"
-                "DirectoryName(value=<Name([<NameAttribute(oid=<ObjectIdentifi"
-                "er(oid=2.5.4.3, name=commonName)>, value='Important CA')>])>)"
-                ">])>"
+                "tinguishedName(CN=myCN)>, reasons=frozenset({<ReasonFlags.ca_"
+                "compromise: 'cACompromise'>}), crl_issuer=[<DirectoryName(val"
+                "ue=<Name(CN=Important CA)>)>])>"
             )
         else:
             assert repr(dp) == (
                 "<DistributionPoint(full_name=None, relative_name=<RelativeDis"
-                "tinguishedName([<NameAttribute(oid=<ObjectIdentifier(oid=2.5."
-                "4.3, name=commonName)>, value=u'myCN')>])>, reasons=frozenset"
-                "([<ReasonFlags.ca_compromise: 'cACompromise'>]), crl_issuer=["
-                "<DirectoryName(value=<Name([<NameAttribute(oid=<ObjectIdentif"
-                "ier(oid=2.5.4.3, name=commonName)>, value=u'Important CA')>])"
-                ">)>])>"
+                "tinguishedName(CN=myCN)>, reasons=frozenset([<ReasonFlags.ca_"
+                "compromise: 'cACompromise'>]), crl_issuer=[<DirectoryName(val"
+                "ue=<Name(CN=Important CA)>)>])>"
             )
 
     def test_hash(self):
@@ -4390,6 +4470,31 @@ class TestOCSPNoCheckExtension(object):
         )
         assert isinstance(ext.value, x509.OCSPNoCheck)
 
+    def test_eq(self):
+        onc1 = x509.OCSPNoCheck()
+        onc2 = x509.OCSPNoCheck()
+
+        assert onc1 == onc2
+
+    def test_hash(self):
+        onc1 = x509.OCSPNoCheck()
+        onc2 = x509.OCSPNoCheck()
+
+        assert hash(onc1) == hash(onc2)
+
+    def test_ne(self):
+        onc1 = x509.OCSPNoCheck()
+        onc2 = x509.OCSPNoCheck()
+
+        assert onc1 == onc2
+        assert (onc1 != onc2) is False
+        assert onc1 != object()
+
+    def test_repr(self):
+        onc = x509.OCSPNoCheck()
+
+        assert repr(onc) == '<OCSPNoCheck()>'
+
 
 class TestInhibitAnyPolicy(object):
     def test_not_int(self):
@@ -4440,6 +4545,431 @@ class TestInhibitAnyPolicyExtension(object):
         assert iap.skip_certs == 5
 
 
+class TestIssuingDistributionPointExtension(object):
+    @pytest.mark.parametrize(
+        ("filename", "expected"),
+        [
+            (
+                "crl_idp_fullname_indirect_crl.pem",
+                x509.IssuingDistributionPoint(
+                    full_name=[
+                        x509.UniformResourceIdentifier(
+                            u"http://myhost.com/myca.crl")
+                    ],
+                    relative_name=None,
+                    only_contains_user_certs=False,
+                    only_contains_ca_certs=False,
+                    only_some_reasons=None,
+                    indirect_crl=True,
+                    only_contains_attribute_certs=False,
+                )
+            ),
+            (
+                "crl_idp_fullname_only.pem",
+                x509.IssuingDistributionPoint(
+                    full_name=[
+                        x509.UniformResourceIdentifier(
+                            u"http://myhost.com/myca.crl")
+                    ],
+                    relative_name=None,
+                    only_contains_user_certs=False,
+                    only_contains_ca_certs=False,
+                    only_some_reasons=None,
+                    indirect_crl=False,
+                    only_contains_attribute_certs=False,
+                )
+            ),
+            (
+                "crl_idp_fullname_only_aa.pem",
+                x509.IssuingDistributionPoint(
+                    full_name=[
+                        x509.UniformResourceIdentifier(
+                            u"http://myhost.com/myca.crl")
+                    ],
+                    relative_name=None,
+                    only_contains_user_certs=False,
+                    only_contains_ca_certs=False,
+                    only_some_reasons=None,
+                    indirect_crl=False,
+                    only_contains_attribute_certs=True,
+                )
+            ),
+            (
+                "crl_idp_fullname_only_user.pem",
+                x509.IssuingDistributionPoint(
+                    full_name=[
+                        x509.UniformResourceIdentifier(
+                            u"http://myhost.com/myca.crl")
+                    ],
+                    relative_name=None,
+                    only_contains_user_certs=True,
+                    only_contains_ca_certs=False,
+                    only_some_reasons=None,
+                    indirect_crl=False,
+                    only_contains_attribute_certs=False,
+                )
+            ),
+            (
+                "crl_idp_only_ca.pem",
+                x509.IssuingDistributionPoint(
+                    full_name=None,
+                    relative_name=x509.RelativeDistinguishedName([
+                        x509.NameAttribute(
+                            oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA"
+                        )
+                    ]),
+                    only_contains_user_certs=False,
+                    only_contains_ca_certs=True,
+                    only_some_reasons=None,
+                    indirect_crl=False,
+                    only_contains_attribute_certs=False,
+                )
+            ),
+            (
+                "crl_idp_reasons_only.pem",
+                x509.IssuingDistributionPoint(
+                    full_name=None,
+                    relative_name=None,
+                    only_contains_user_certs=False,
+                    only_contains_ca_certs=False,
+                    only_some_reasons=frozenset([
+                        x509.ReasonFlags.key_compromise
+                    ]),
+                    indirect_crl=False,
+                    only_contains_attribute_certs=False,
+                )
+            ),
+            (
+                "crl_idp_relative_user_all_reasons.pem",
+                x509.IssuingDistributionPoint(
+                    full_name=None,
+                    relative_name=x509.RelativeDistinguishedName([
+                        x509.NameAttribute(
+                            oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA"
+                        )
+                    ]),
+                    only_contains_user_certs=True,
+                    only_contains_ca_certs=False,
+                    only_some_reasons=frozenset([
+                        x509.ReasonFlags.key_compromise,
+                        x509.ReasonFlags.ca_compromise,
+                        x509.ReasonFlags.affiliation_changed,
+                        x509.ReasonFlags.superseded,
+                        x509.ReasonFlags.cessation_of_operation,
+                        x509.ReasonFlags.certificate_hold,
+                        x509.ReasonFlags.privilege_withdrawn,
+                        x509.ReasonFlags.aa_compromise,
+                    ]),
+                    indirect_crl=False,
+                    only_contains_attribute_certs=False,
+                )
+            ),
+            (
+                "crl_idp_relativename_only.pem",
+                x509.IssuingDistributionPoint(
+                    full_name=None,
+                    relative_name=x509.RelativeDistinguishedName([
+                        x509.NameAttribute(
+                            oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA"
+                        )
+                    ]),
+                    only_contains_user_certs=False,
+                    only_contains_ca_certs=False,
+                    only_some_reasons=None,
+                    indirect_crl=False,
+                    only_contains_attribute_certs=False,
+                )
+            ),
+        ]
+    )
+    @pytest.mark.requires_backend_interface(interface=RSABackend)
+    @pytest.mark.requires_backend_interface(interface=X509Backend)
+    def test_vectors(self, filename, expected, backend):
+        crl = _load_cert(
+            os.path.join("x509", "custom", filename),
+            x509.load_pem_x509_crl, backend
+        )
+        idp = crl.extensions.get_extension_for_class(
+            x509.IssuingDistributionPoint
+        ).value
+        assert idp == expected
+
+    @pytest.mark.parametrize(
+        (
+            "error", "only_contains_user_certs", "only_contains_ca_certs",
+            "indirect_crl", "only_contains_attribute_certs",
+            "only_some_reasons", "full_name", "relative_name"
+        ),
+        [
+            (
+                TypeError, False, False, False, False, 'notafrozenset', None,
+                None
+            ),
+            (
+                TypeError, False, False, False, False, frozenset(['bad']),
+                None, None
+            ),
+            (
+                ValueError, False, False, False, False,
+                frozenset([x509.ReasonFlags.unspecified]), None, None
+            ),
+            (
+                ValueError, False, False, False, False,
+                frozenset([x509.ReasonFlags.remove_from_crl]), None, None
+            ),
+            (TypeError, 'notabool', False, False, False, None, None, None),
+            (TypeError, False, 'notabool', False, False, None, None, None),
+            (TypeError, False, False, 'notabool', False, None, None, None),
+            (TypeError, False, False, False, 'notabool', None, None, None),
+            (ValueError, True, True, False, False, None, None, None),
+            (ValueError, False, False, True, True, None, None, None),
+            (ValueError, False, False, False, False, None, None, None),
+        ]
+    )
+    def test_invalid_init(self, error, only_contains_user_certs,
+                          only_contains_ca_certs, indirect_crl,
+                          only_contains_attribute_certs, only_some_reasons,
+                          full_name, relative_name):
+        with pytest.raises(error):
+            x509.IssuingDistributionPoint(
+                full_name, relative_name, only_contains_user_certs,
+                only_contains_ca_certs, only_some_reasons, indirect_crl,
+                only_contains_attribute_certs
+            )
+
+    def test_repr(self):
+        idp = x509.IssuingDistributionPoint(
+            None, None, False, False,
+            frozenset([x509.ReasonFlags.key_compromise]), False, False
+        )
+        if not six.PY2:
+            assert repr(idp) == (
+                "<IssuingDistributionPoint(full_name=None, relative_name=None,"
+                " only_contains_user_certs=False, only_contains_ca_certs=False"
+                ", only_some_reasons=frozenset({<ReasonFlags.key_compromise: '"
+                "keyCompromise'>}), indirect_crl=False, only_contains_attribut"
+                "e_certs=False)>"
+            )
+        else:
+            assert repr(idp) == (
+                "<IssuingDistributionPoint(full_name=None, relative_name=None,"
+                " only_contains_user_certs=False, only_contains_ca_certs=False"
+                ", only_some_reasons=frozenset([<ReasonFlags.key_compromise: '"
+                "keyCompromise'>]), indirect_crl=False, only_contains_attribut"
+                "e_certs=False)>"
+            )
+
+    def test_eq(self):
+        idp1 = x509.IssuingDistributionPoint(
+            only_contains_user_certs=False,
+            only_contains_ca_certs=False,
+            indirect_crl=False,
+            only_contains_attribute_certs=False,
+            only_some_reasons=None,
+            full_name=None,
+            relative_name=x509.RelativeDistinguishedName([
+                x509.NameAttribute(
+                    oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA")
+            ])
+        )
+        idp2 = x509.IssuingDistributionPoint(
+            only_contains_user_certs=False,
+            only_contains_ca_certs=False,
+            indirect_crl=False,
+            only_contains_attribute_certs=False,
+            only_some_reasons=None,
+            full_name=None,
+            relative_name=x509.RelativeDistinguishedName([
+                x509.NameAttribute(
+                    oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA")
+            ])
+        )
+        assert idp1 == idp2
+
+    def test_ne(self):
+        idp1 = x509.IssuingDistributionPoint(
+            only_contains_user_certs=False,
+            only_contains_ca_certs=False,
+            indirect_crl=False,
+            only_contains_attribute_certs=False,
+            only_some_reasons=None,
+            full_name=None,
+            relative_name=x509.RelativeDistinguishedName([
+                x509.NameAttribute(
+                    oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA")
+            ])
+        )
+        idp2 = x509.IssuingDistributionPoint(
+            only_contains_user_certs=True,
+            only_contains_ca_certs=False,
+            indirect_crl=False,
+            only_contains_attribute_certs=False,
+            only_some_reasons=None,
+            full_name=None,
+            relative_name=x509.RelativeDistinguishedName([
+                x509.NameAttribute(
+                    oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA")
+            ])
+        )
+        assert idp1 != idp2
+        assert idp1 != object()
+
+    def test_hash(self):
+        idp1 = x509.IssuingDistributionPoint(
+            None, None, True, False, None, False, False
+        )
+        idp2 = x509.IssuingDistributionPoint(
+            None, None, True, False, None, False, False
+        )
+        idp3 = x509.IssuingDistributionPoint(
+            None,
+            x509.RelativeDistinguishedName([
+                x509.NameAttribute(
+                    oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA")
+            ]),
+            True, False, None, False, False
+        )
+        assert hash(idp1) == hash(idp2)
+        assert hash(idp1) != hash(idp3)
+
+    @pytest.mark.requires_backend_interface(interface=RSABackend)
+    @pytest.mark.requires_backend_interface(interface=X509Backend)
+    @pytest.mark.parametrize(
+        "idp",
+        [
+            x509.IssuingDistributionPoint(
+                full_name=[
+                    x509.UniformResourceIdentifier(
+                        u"http://myhost.com/myca.crl"
+                    )
+                ],
+                relative_name=None,
+                only_contains_user_certs=False,
+                only_contains_ca_certs=False,
+                only_some_reasons=None,
+                indirect_crl=True,
+                only_contains_attribute_certs=False,
+            ),
+            x509.IssuingDistributionPoint(
+                full_name=[
+                    x509.UniformResourceIdentifier(
+                        u"http://myhost.com/myca.crl"
+                    )
+                ],
+                relative_name=None,
+                only_contains_user_certs=False,
+                only_contains_ca_certs=False,
+                only_some_reasons=None,
+                indirect_crl=False,
+                only_contains_attribute_certs=False,
+            ),
+            x509.IssuingDistributionPoint(
+                full_name=[
+                    x509.UniformResourceIdentifier(
+                        u"http://myhost.com/myca.crl"
+                    )
+                ],
+                relative_name=None,
+                only_contains_user_certs=False,
+                only_contains_ca_certs=False,
+                only_some_reasons=None,
+                indirect_crl=False,
+                only_contains_attribute_certs=True,
+            ),
+            x509.IssuingDistributionPoint(
+                full_name=[
+                    x509.UniformResourceIdentifier(
+                        u"http://myhost.com/myca.crl"
+                    )
+                ],
+                relative_name=None,
+                only_contains_user_certs=True,
+                only_contains_ca_certs=False,
+                only_some_reasons=None,
+                indirect_crl=False,
+                only_contains_attribute_certs=False,
+            ),
+            x509.IssuingDistributionPoint(
+                full_name=None,
+                relative_name=x509.RelativeDistinguishedName([
+                    x509.NameAttribute(
+                        oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA"
+                    )
+                ]),
+                only_contains_user_certs=False,
+                only_contains_ca_certs=True,
+                only_some_reasons=None,
+                indirect_crl=False,
+                only_contains_attribute_certs=False,
+            ),
+            x509.IssuingDistributionPoint(
+                full_name=None,
+                relative_name=None,
+                only_contains_user_certs=False,
+                only_contains_ca_certs=True,
+                only_some_reasons=frozenset([x509.ReasonFlags.key_compromise]),
+                indirect_crl=False,
+                only_contains_attribute_certs=False,
+            ),
+            x509.IssuingDistributionPoint(
+                full_name=None,
+                relative_name=x509.RelativeDistinguishedName([
+                    x509.NameAttribute(
+                        oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA"),
+                    x509.NameAttribute(
+                        oid=x509.NameOID.COMMON_NAME, value=u"cryptography")
+                ]),
+                only_contains_user_certs=True,
+                only_contains_ca_certs=False,
+                only_some_reasons=frozenset([
+                    x509.ReasonFlags.key_compromise,
+                    x509.ReasonFlags.ca_compromise,
+                    x509.ReasonFlags.affiliation_changed,
+                    x509.ReasonFlags.privilege_withdrawn,
+                    x509.ReasonFlags.aa_compromise,
+                ]),
+                indirect_crl=False,
+                only_contains_attribute_certs=False,
+            ),
+            x509.IssuingDistributionPoint(
+                full_name=None,
+                relative_name=x509.RelativeDistinguishedName([
+                    x509.NameAttribute(
+                        oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA"
+                    )
+                ]),
+                only_contains_user_certs=False,
+                only_contains_ca_certs=False,
+                only_some_reasons=None,
+                indirect_crl=False,
+                only_contains_attribute_certs=False,
+            ),
+        ]
+    )
+    def test_generate(self, idp, backend):
+        key = RSA_KEY_2048.private_key(backend)
+        last_update = datetime.datetime(2002, 1, 1, 12, 1)
+        next_update = datetime.datetime(2030, 1, 1, 12, 1)
+        builder = x509.CertificateRevocationListBuilder().issuer_name(
+            x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, u"cryptography.io CA")
+            ])
+        ).last_update(
+            last_update
+        ).next_update(
+            next_update
+        ).add_extension(
+            idp, True
+        )
+
+        crl = builder.sign(key, hashes.SHA256(), backend)
+        ext = crl.extensions.get_extension_for_class(
+            x509.IssuingDistributionPoint
+        )
+        assert ext.critical is True
+        assert ext.value == idp
+
+
 @pytest.mark.requires_backend_interface(interface=RSABackend)
 @pytest.mark.requires_backend_interface(interface=X509Backend)
 class TestPrecertPoisonExtension(object):
@@ -4467,6 +4997,31 @@ class TestPrecertPoisonExtension(object):
             ExtensionOID.PRECERT_POISON
         ).value
         assert isinstance(poison, x509.PrecertPoison)
+
+    def test_eq(self):
+        pcp1 = x509.PrecertPoison()
+        pcp2 = x509.PrecertPoison()
+
+        assert pcp1 == pcp2
+
+    def test_hash(self):
+        pcp1 = x509.PrecertPoison()
+        pcp2 = x509.PrecertPoison()
+
+        assert hash(pcp1) == hash(pcp2)
+
+    def test_ne(self):
+        pcp1 = x509.PrecertPoison()
+        pcp2 = x509.PrecertPoison()
+
+        assert pcp1 == pcp2
+        assert (pcp1 != pcp2) is False
+        assert pcp1 != object()
+
+    def test_repr(self):
+        pcp = x509.PrecertPoison()
+
+        assert repr(pcp) == '<PrecertPoison()>'
 
 
 @pytest.mark.requires_backend_interface(interface=RSABackend)
@@ -4732,3 +5287,10 @@ class TestOCSPNonce(object):
         nonce3 = x509.OCSPNonce(b"1" * 5)
         assert hash(nonce1) == hash(nonce2)
         assert hash(nonce1) != hash(nonce3)
+
+
+def test_all_extension_oid_members_have_names_defined():
+    for oid in dir(ExtensionOID):
+        if oid.startswith('__'):
+            continue
+        assert getattr(ExtensionOID, oid) in _OID_NAMES

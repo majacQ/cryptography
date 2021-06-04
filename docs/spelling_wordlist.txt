@@ -1,6 +1,7 @@
 accessor
 affine
 Authenticator
+authenticator
 backend
 Backends
 backends
@@ -22,6 +23,7 @@ crypto
 cryptographic
 cryptographically
 Debian
+deallocated
 decrypt
 decrypts
 Decrypts
@@ -41,6 +43,7 @@ Docstrings
 El
 Encodings
 endian
+extendable
 fallback
 Fernet
 fernet
@@ -52,6 +55,7 @@ hostname
 idna
 indistinguishability
 initialisms
+interoperability
 interoperable
 introspectability
 invariants
@@ -75,6 +79,7 @@ Parallelization
 personalization
 pickleable
 plaintext
+Poly
 pre
 precompute
 preprocessor

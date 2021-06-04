@@ -64,7 +64,7 @@ Elliptic Curve Signature Algorithms
         ...     ec.ECDSA(hashes.SHA256())
         ... )
 
-    The ``signature`` is a ``bytes`` object, whose contents is DER encoded as
+    The ``signature`` is a ``bytes`` object, whose contents are DER encoded as
     described in :rfc:`3279`. This can be decoded using
     :func:`~cryptography.hazmat.primitives.asymmetric.utils.decode_dss_signature`.
 
@@ -86,12 +86,17 @@ Elliptic Curve Signature Algorithms
         ... )
 
 
-    Verification requires the public key, the signature itself, the signed
-    data, and knowledge of the hashing algorithm that was used when producing
-    the signature:
+    Verification requires the public key, the DER-encoded signature itself, the
+    signed data, and knowledge of the hashing algorithm that was used when
+    producing the signature:
 
     >>> public_key = private_key.public_key()
     >>> public_key.verify(signature, data, ec.ECDSA(hashes.SHA256()))
+
+    As above, the ``signature`` is a ``bytes`` object whose contents are DER
+    encoded as described in :rfc:`3279`. It can be created from a raw ``(r,s)``
+    pair by using
+    :func:`~cryptography.hazmat.primitives.asymmetric.utils.encode_dss_signature`.
 
     If the signature is not valid, an
     :class:`~cryptography.exceptions.InvalidSignature` exception will be raised.
@@ -194,6 +199,12 @@ Elliptic Curve Signature Algorithms
 
     .. method:: encode_point()
 
+        .. warning::
+
+            This method is deprecated as of version 2.5. Callers should migrate
+            to using
+            :meth:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey.public_bytes`.
+
         .. versionadded:: 1.1
 
         Encodes an elliptic curve point to a byte string as described in
@@ -205,6 +216,11 @@ Elliptic Curve Signature Algorithms
     .. classmethod:: from_encoded_point(curve, data)
 
         .. versionadded:: 1.1
+
+        .. note::
+
+            This has been deprecated in favor of
+            :meth:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey.from_encoded_point`
 
         Decodes a byte string as described in `SEC 1 v2.0`_ section 2.3.3 and
         returns an :class:`EllipticCurvePublicNumbers`. This method only
@@ -590,7 +606,16 @@ Key Interfaces
         :param signature_algorithm: An instance of
             :class:`EllipticCurveSignatureAlgorithm`, such as :class:`ECDSA`.
 
-        :return bytes: Signature.
+        :return bytes: The signature as a ``bytes`` object, whose contents are
+            DER encoded as described in :rfc:`3279`. This can be decoded using
+            :func:`~cryptography.hazmat.primitives.asymmetric.utils.decode_dss_signature`,
+            which returns the decoded tuple ``(r, s)``.
+
+    .. attribute:: curve
+
+        :type: :class:`EllipticCurve`
+
+        The EllipticCurve that this key is on.
 
     .. attribute:: key_size
 
@@ -663,12 +688,20 @@ Key Interfaces
 
     .. method:: public_bytes(encoding, format)
 
-        Allows serialization of the key to bytes. Encoding (
-        :attr:`~cryptography.hazmat.primitives.serialization.Encoding.PEM` or
+        Allows serialization of the key data to bytes. When encoding the public
+        key the encodings (
+        :attr:`~cryptography.hazmat.primitives.serialization.Encoding.PEM`,
         :attr:`~cryptography.hazmat.primitives.serialization.Encoding.DER`) and
         format (
         :attr:`~cryptography.hazmat.primitives.serialization.PublicFormat.SubjectPublicKeyInfo`)
-        are chosen to define the exact serialization.
+        are chosen to define the exact serialization. When encoding the point
+        the encoding
+        :attr:`~cryptography.hazmat.primitives.serialization.Encoding.X962`
+        should be used with the formats (
+        :attr:`~cryptography.hazmat.primitives.serialization.PublicFormat.UncompressedPoint`
+        or
+        :attr:`~cryptography.hazmat.primitives.serialization.PublicFormat.CompressedPoint`
+        ).
 
         :param encoding: A value from the
             :class:`~cryptography.hazmat.primitives.serialization.Encoding` enum.
@@ -676,7 +709,7 @@ Key Interfaces
         :param format: A value from the
             :class:`~cryptography.hazmat.primitives.serialization.PublicFormat` enum.
 
-        :return bytes: Serialized key.
+        :return bytes: Serialized data.
 
     .. method:: verify(signature, data, signature_algorithm)
 
@@ -685,7 +718,10 @@ Key Interfaces
         Verify one block of data was signed by the private key associated
         with this public key.
 
-        :param bytes signature: The signature to verify.
+        :param bytes signature: The DER-encoded signature to verify.
+            A raw signature may be DER-encoded by splitting it into the ``r``
+            and ``s`` components and passing them into
+            :func:`~cryptography.hazmat.primitives.asymmetric.utils.encode_dss_signature`.
 
         :param bytes data: The message string that was signed.
 
@@ -703,6 +739,27 @@ Key Interfaces
 
         Size (in :term:`bits`) of a secret scalar for the curve (as generated
         by :func:`generate_private_key`).
+
+    .. classmethod:: from_encoded_point(curve, data)
+
+        .. versionadded:: 2.5
+
+        Decodes a byte string as described in `SEC 1 v2.0`_ section 2.3.3 and
+        returns an :class:`EllipticCurvePublicKey`. This class method supports
+        compressed points.
+
+        :param curve: An
+            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurve`
+            instance.
+
+        :param bytes data: The serialized point byte string.
+
+        :returns: An :class:`EllipticCurvePublicKey` instance.
+
+        :raises ValueError: Raised when an invalid point is supplied.
+
+        :raises TypeError: Raised when curve is not an
+            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurve`.
 
 
 .. class:: EllipticCurvePublicKeyWithSerialization
@@ -722,9 +779,8 @@ This sample demonstrates how to generate a private key and serialize it.
 .. doctest::
 
     >>> from cryptography.hazmat.backends import default_backend
-    >>> from cryptography.hazmat.primitives import hashes
-    >>> from cryptography.hazmat.primitives.asymmetric import ec
     >>> from cryptography.hazmat.primitives import serialization
+    >>> from cryptography.hazmat.primitives.asymmetric import ec
 
     >>> private_key = ec.generate_private_key(ec.SECP384R1(), default_backend())
 
@@ -808,17 +864,110 @@ Elliptic Curve Object Identifiers
 
         Corresponds to the dotted string ``"1.3.132.0.35"``.
 
+    .. attribute:: BRAINPOOLP256R1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.36.3.3.2.8.1.1.7"``.
+
+    .. attribute:: BRAINPOOLP384R1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.36.3.3.2.8.1.1.11"``.
+
+    .. attribute:: BRAINPOOLP512R1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.36.3.3.2.8.1.1.13"``.
+
+    .. attribute:: SECT163K1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.132.0.1"``.
+
+    .. attribute:: SECT163R2
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.132.0.15"``.
+
+    .. attribute:: SECT233K1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.132.0.26"``.
+
+    .. attribute:: SECT233R1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.132.0.27"``.
+
+    .. attribute:: SECT283K1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.132.0.16"``.
+
+    .. attribute:: SECT283R1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.132.0.17"``.
+
+    .. attribute:: SECT409K1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.132.0.36"``.
+
+    .. attribute:: SECT409R1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.132.0.37"``.
+
+    .. attribute:: SECT571K1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.132.0.38"``.
+
+    .. attribute:: SECT571R1
+
+        .. versionadded:: 2.5
+
+        Corresponds to the dotted string ``"1.3.132.0.39"``.
+
+.. function:: get_curve_for_oid(oid)
+
+    .. versionadded:: 2.6
+
+    A function that takes an :class:`~cryptography.x509.ObjectIdentifier`
+    and returns the associated elliptic curve class.
+
+    :param oid: An instance of
+        :class:`~cryptography.x509.ObjectIdentifier`.
+
+    :returns: The matching elliptic curve class. The returned class conforms
+        to the :class:`EllipticCurve` interface.
+
+    :raises LookupError: Raised if no elliptic curve is found that matches
+        the provided object identifier.
 
 .. _`FIPS 186-3`: https://csrc.nist.gov/csrc/media/publications/fips/186/3/archive/2009-06-25/documents/fips_186-3.pdf
 .. _`FIPS 186-4`: https://csrc.nist.gov/publications/detail/fips/186/4/final
 .. _`800-56A`: https://csrc.nist.gov/publications/detail/sp/800-56a/revised/archive/2007-03-14
 .. _`800-56Ar2`: https://csrc.nist.gov/publications/detail/sp/800-56a/rev-2/final
 .. _`some concern`: https://crypto.stackexchange.com/questions/10263/should-we-trust-the-nist-recommended-ecc-parameters
-.. _`less than 224 bits`: http://www.ecrypt.eu.org/ecrypt2/documents/D.SPA.20.pdf
+.. _`less than 224 bits`: https://www.cosic.esat.kuleuven.be/ecrypt/ecrypt2/documents/D.SPA.20.pdf
 .. _`elliptic curve diffie-hellman is faster than diffie-hellman`: https://digitalcommons.unl.edu/cgi/viewcontent.cgi?article=1100&context=cseconfwork
 .. _`minimize the number of security concerns for elliptic-curve cryptography`: https://cr.yp.to/ecdh/curve25519-20060209.pdf
 .. _`SafeCurves`: https://safecurves.cr.yp.to/
 .. _`ECDSA`: https://en.wikipedia.org/wiki/ECDSA
 .. _`EdDSA`: https://en.wikipedia.org/wiki/EdDSA
 .. _`forward secrecy`: https://en.wikipedia.org/wiki/Forward_secrecy
-.. _`SEC 1 v2.0`: http://www.secg.org/sec1-v2.pdf
+.. _`SEC 1 v2.0`: https://www.secg.org/sec1-v2.pdf

@@ -10,7 +10,6 @@ INCLUDES = """
 """
 
 TYPES = """
-static const int Cryptography_HAS_EC;
 static const int Cryptography_HAS_EC2M;
 static const int Cryptography_HAS_EC_1_0_2;
 
@@ -106,11 +105,11 @@ int EC_POINT_mul(const EC_GROUP *, EC_POINT *, const BIGNUM *,
 int EC_METHOD_get_field_type(const EC_METHOD *);
 
 const char *EC_curve_nid2nist(int);
+
+int EC_GROUP_get_asn1_flag(const EC_GROUP *);
 """
 
 CUSTOMIZATIONS = """
-static const long Cryptography_HAS_EC = 1;
-
 #if defined(OPENSSL_NO_EC2M)
 static const long Cryptography_HAS_EC2M = 0;
 

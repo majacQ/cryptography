@@ -13,7 +13,7 @@ import pytest
 from cryptography import x509
 from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, ed448
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.x509 import ocsp
 
@@ -45,10 +45,12 @@ def _cert_and_issuer():
     return cert, issuer
 
 
-def _generate_root():
+def _generate_root(private_key=None, algorithm=hashes.SHA256()):
     from cryptography.hazmat.backends.openssl.backend import backend
 
-    private_key = EC_KEY_SECP256R1.private_key(backend)
+    if private_key is None:
+        private_key = EC_KEY_SECP256R1.private_key(backend)
+
     subject = x509.Name([
         x509.NameAttribute(x509.NameOID.COUNTRY_NAME, u'US'),
         x509.NameAttribute(x509.NameOID.COMMON_NAME, u'Cryptography CA'),
@@ -68,7 +70,7 @@ def _generate_root():
         datetime.datetime.now() + datetime.timedelta(days=3650)
     )
 
-    cert = builder.sign(private_key, hashes.SHA256(), backend)
+    cert = builder.sign(private_key, algorithm, backend)
     return cert, private_key
 
 
@@ -583,6 +585,7 @@ class TestOCSPResponse(object):
         assert resp.response_status == ocsp.OCSPResponseStatus.SUCCESSFUL
         assert (resp.signature_algorithm_oid ==
                 x509.SignatureAlgorithmOID.RSA_WITH_SHA256)
+        assert isinstance(resp.signature_hash_algorithm, hashes.SHA256)
         assert resp.signature == base64.b64decode(
             b"I9KUlyLV/2LbNCVu1BQphxdNlU/jBzXsPYVscPjW5E93pCrSO84GkIWoOJtqsnt"
             b"78DLcQPnF3W24NXGzSGKlSWfXIsyoXCxnBm0mIbD5ZMnKyXEnqSR33Z9He/A+ML"
@@ -602,7 +605,7 @@ class TestOCSPResponse(object):
             resp.signature,
             resp.tbs_response_bytes,
             PKCS1v15(),
-            hashes.SHA256()
+            resp.signature_hash_algorithm
         )
         assert resp.certificates == []
         assert resp.responder_key_hash is None
@@ -630,39 +633,41 @@ class TestOCSPResponse(object):
         )
         assert resp.response_status == ocsp.OCSPResponseStatus.UNAUTHORIZED
         with pytest.raises(ValueError):
-            assert resp.signature_algorithm_oid
+            resp.signature_algorithm_oid
         with pytest.raises(ValueError):
-            assert resp.signature
+            resp.signature_hash_algorithm
         with pytest.raises(ValueError):
-            assert resp.tbs_response_bytes
+            resp.signature
         with pytest.raises(ValueError):
-            assert resp.certificates
+            resp.tbs_response_bytes
         with pytest.raises(ValueError):
-            assert resp.responder_key_hash
+            resp.certificates
         with pytest.raises(ValueError):
-            assert resp.responder_name
+            resp.responder_key_hash
         with pytest.raises(ValueError):
-            assert resp.produced_at
+            resp.responder_name
         with pytest.raises(ValueError):
-            assert resp.certificate_status
+            resp.produced_at
         with pytest.raises(ValueError):
-            assert resp.revocation_time
+            resp.certificate_status
         with pytest.raises(ValueError):
-            assert resp.revocation_reason
+            resp.revocation_time
         with pytest.raises(ValueError):
-            assert resp.this_update
+            resp.revocation_reason
         with pytest.raises(ValueError):
-            assert resp.next_update
+            resp.this_update
         with pytest.raises(ValueError):
-            assert resp.issuer_key_hash
+            resp.next_update
         with pytest.raises(ValueError):
-            assert resp.issuer_name_hash
+            resp.issuer_key_hash
         with pytest.raises(ValueError):
-            assert resp.hash_algorithm
+            resp.issuer_name_hash
         with pytest.raises(ValueError):
-            assert resp.serial_number
+            resp.hash_algorithm
         with pytest.raises(ValueError):
-            assert resp.extensions
+            resp.serial_number
+        with pytest.raises(ValueError):
+            resp.extensions
 
     def test_load_revoked(self):
         resp = _load_data(
@@ -683,6 +688,17 @@ class TestOCSPResponse(object):
         assert len(resp.certificates) == 1
         assert isinstance(resp.certificates[0], x509.Certificate)
         assert resp.certificate_status == ocsp.OCSPCertStatus.UNKNOWN
+
+    def test_load_invalid_signature_oid(self):
+        resp = _load_data(
+            os.path.join("x509", "ocsp", "resp-invalid-signature-oid.der"),
+            ocsp.load_der_ocsp_response,
+        )
+        assert resp.signature_algorithm_oid == x509.ObjectIdentifier(
+            "1.2.840.113549.1.1.2"
+        )
+        with pytest.raises(UnsupportedAlgorithm):
+            resp.signature_hash_algorithm
 
     def test_load_responder_key_hash(self):
         resp = _load_data(
@@ -739,3 +755,104 @@ class TestOCSPResponse(object):
             resp.public_bytes("invalid")
         with pytest.raises(ValueError):
             resp.public_bytes(serialization.Encoding.PEM)
+
+    def test_single_extensions(self, backend):
+        resp = _load_data(
+            os.path.join("x509", "ocsp", "resp-single-extension-reason.der"),
+            ocsp.load_der_ocsp_response,
+        )
+        assert len(resp.single_extensions) == 1
+        ext = resp.single_extensions[0]
+        assert ext.oid == x509.CRLReason.oid
+        assert ext.value == x509.CRLReason(x509.ReasonFlags.unspecified)
+
+
+class TestOCSPEdDSA(object):
+    @pytest.mark.supported(
+        only_if=lambda backend: backend.ed25519_supported(),
+        skip_message="Requires OpenSSL with Ed25519 support / OCSP"
+    )
+    def test_invalid_algorithm(self, backend):
+        builder = ocsp.OCSPResponseBuilder()
+        cert, issuer = _cert_and_issuer()
+        private_key = ed25519.Ed25519PrivateKey.generate()
+        root_cert, _ = _generate_root(private_key, None)
+        current_time = datetime.datetime.utcnow().replace(microsecond=0)
+        this_update = current_time - datetime.timedelta(days=1)
+        next_update = this_update + datetime.timedelta(days=7)
+        revoked_date = this_update - datetime.timedelta(days=300)
+        builder = builder.responder_id(
+            ocsp.OCSPResponderEncoding.NAME, root_cert
+        ).add_response(
+            cert, issuer, hashes.SHA1(), ocsp.OCSPCertStatus.REVOKED,
+            this_update, next_update, revoked_date,
+            x509.ReasonFlags.key_compromise
+        )
+        with pytest.raises(ValueError):
+            builder.sign(private_key, hashes.SHA256())
+
+    @pytest.mark.supported(
+        only_if=lambda backend: backend.ed25519_supported(),
+        skip_message="Requires OpenSSL with Ed25519 support / OCSP"
+    )
+    def test_sign_ed25519(self, backend):
+        builder = ocsp.OCSPResponseBuilder()
+        cert, issuer = _cert_and_issuer()
+        private_key = ed25519.Ed25519PrivateKey.generate()
+        root_cert, _ = _generate_root(private_key, None)
+        current_time = datetime.datetime.utcnow().replace(microsecond=0)
+        this_update = current_time - datetime.timedelta(days=1)
+        next_update = this_update + datetime.timedelta(days=7)
+        revoked_date = this_update - datetime.timedelta(days=300)
+        builder = builder.responder_id(
+            ocsp.OCSPResponderEncoding.NAME, root_cert
+        ).add_response(
+            cert, issuer, hashes.SHA1(), ocsp.OCSPCertStatus.REVOKED,
+            this_update, next_update, revoked_date,
+            x509.ReasonFlags.key_compromise
+        )
+        resp = builder.sign(private_key, None)
+        assert resp.certificate_status == ocsp.OCSPCertStatus.REVOKED
+        assert resp.revocation_time == revoked_date
+        assert resp.revocation_reason is x509.ReasonFlags.key_compromise
+        assert resp.this_update == this_update
+        assert resp.next_update == next_update
+        assert resp.signature_hash_algorithm is None
+        assert (resp.signature_algorithm_oid ==
+                x509.SignatureAlgorithmOID.ED25519)
+        private_key.public_key().verify(
+            resp.signature, resp.tbs_response_bytes
+        )
+
+    @pytest.mark.supported(
+        only_if=lambda backend: backend.ed448_supported(),
+        skip_message="Requires OpenSSL with Ed448 support / OCSP"
+    )
+    def test_sign_ed448(self, backend):
+        builder = ocsp.OCSPResponseBuilder()
+        cert, issuer = _cert_and_issuer()
+        private_key = ed448.Ed448PrivateKey.generate()
+        root_cert, _ = _generate_root(private_key, None)
+        current_time = datetime.datetime.utcnow().replace(microsecond=0)
+        this_update = current_time - datetime.timedelta(days=1)
+        next_update = this_update + datetime.timedelta(days=7)
+        revoked_date = this_update - datetime.timedelta(days=300)
+        builder = builder.responder_id(
+            ocsp.OCSPResponderEncoding.NAME, root_cert
+        ).add_response(
+            cert, issuer, hashes.SHA1(), ocsp.OCSPCertStatus.REVOKED,
+            this_update, next_update, revoked_date,
+            x509.ReasonFlags.key_compromise
+        )
+        resp = builder.sign(private_key, None)
+        assert resp.certificate_status == ocsp.OCSPCertStatus.REVOKED
+        assert resp.revocation_time == revoked_date
+        assert resp.revocation_reason is x509.ReasonFlags.key_compromise
+        assert resp.this_update == this_update
+        assert resp.next_update == next_update
+        assert resp.signature_hash_algorithm is None
+        assert (resp.signature_algorithm_oid ==
+                x509.SignatureAlgorithmOID.ED448)
+        private_key.public_key().verify(
+            resp.signature, resp.tbs_response_bytes
+        )

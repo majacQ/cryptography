@@ -30,7 +30,7 @@ KeyedHashVector = collections.namedtuple(
 def check_backend_support(backend, item):
     for mark in item.node.iter_markers("supported"):
         if not mark.kwargs["only_if"](backend):
-            pytest.skip("{0} ({1})".format(
+            pytest.skip("{} ({})".format(
                 mark.kwargs["skip_message"], backend
             ))
 
@@ -134,7 +134,7 @@ def load_hash_vectors(vector_data):
             # string as hex 00, which is of course not actually an empty
             # string. So we parse the provided length and catch this edge case.
             msg = line.split(" = ")[1].encode("ascii") if length > 0 else b""
-        elif line.startswith("MD"):
+        elif line.startswith("MD") or line.startswith("Output"):
             md = line.split(" = ")[1]
             # after MD is found the Msg+MD (+ potential key) tuple is complete
             if key is not None:
@@ -396,7 +396,7 @@ def load_fips_dsa_sig_vectors(vector_data):
 
         sha_match = sha_regex.match(line)
         if sha_match:
-            digest_algorithm = "SHA-{0}".format(sha_match.group("sha"))
+            digest_algorithm = "SHA-{}".format(sha_match.group("sha"))
 
         if line.startswith("[mod"):
             continue
@@ -435,7 +435,7 @@ def load_fips_dsa_sig_vectors(vector_data):
     return vectors
 
 
-# http://tools.ietf.org/html/rfc4492#appendix-A
+# https://tools.ietf.org/html/rfc4492#appendix-A
 _ECDSA_CURVE_NAMES = {
     "P-192": "secp192r1",
     "P-224": "secp224r1",
@@ -511,7 +511,7 @@ def load_fips_ecdsa_signing_vectors(vector_data):
         curve_match = curve_rx.match(line)
         if curve_match:
             curve_name = _ECDSA_CURVE_NAMES[curve_match.group("curve")]
-            digest_name = "SHA-{0}".format(curve_match.group("sha"))
+            digest_name = "SHA-{}".format(curve_match.group("sha"))
 
         elif line.startswith("Msg = "):
             if data is not None:
@@ -783,7 +783,7 @@ def load_nist_kbkdf_vectors(vector_data):
 
             tag.update({name.lower(): value.lower()})
         elif line.startswith("COUNT="):
-            test_data = dict()
+            test_data = {}
             test_data.update(tag)
             vectors.append(test_data)
         elif line.startswith("L"):

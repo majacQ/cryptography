@@ -21,6 +21,7 @@ _CURVES = {
     "secp256r1": ec.SECP256R1(),
     "secp384r1": ec.SECP384R1(),
     "secp521r1": ec.SECP521R1(),
+    "secp224k1": None,
     "secp256k1": ec.SECP256K1(),
     "brainpoolP224r1": None,
     "brainpoolP256r1": ec.BrainpoolP256R1(),
@@ -97,28 +98,18 @@ def test_ecdh_ecpoint(backend, wycheproof):
     private_key = ec.derive_private_key(
         int(wycheproof.testcase["private"], 16), curve, backend
     )
-    # We don't support compressed points
-    if (
-        wycheproof.has_flag("CompressedPoint") or
-        not wycheproof.testcase["public"]
-    ):
+
+    if wycheproof.invalid:
         with pytest.raises(ValueError):
-            ec.EllipticCurvePublicNumbers.from_encoded_point(
+            ec.EllipticCurvePublicKey.from_encoded_point(
                 curve, binascii.unhexlify(wycheproof.testcase["public"])
             )
         return
 
-    public_numbers = ec.EllipticCurvePublicNumbers.from_encoded_point(
+    assert wycheproof.valid or wycheproof.acceptable
+    public_key = ec.EllipticCurvePublicKey.from_encoded_point(
         curve, binascii.unhexlify(wycheproof.testcase["public"])
     )
-    if wycheproof.testcase["comment"] == "point is not on curve":
-        assert wycheproof.invalid
-        with pytest.raises(ValueError):
-            public_numbers.public_key(backend)
-        return
-
-    assert wycheproof.valid or wycheproof.acceptable
-    public_key = public_numbers.public_key(backend)
     computed_shared = private_key.exchange(ec.ECDH(), public_key)
     expected_shared = binascii.unhexlify(wycheproof.testcase["shared"])
     assert computed_shared == expected_shared
