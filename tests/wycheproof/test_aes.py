@@ -106,6 +106,7 @@ def test_aes_gcm_aead_api(backend, wycheproof):
     else:
         with pytest.raises(InvalidTag):
             aesgcm.decrypt(iv, ct + tag, aad)
+  <<<<<<< 2.4.x
 
 
 @pytest.mark.skipif(
@@ -142,3 +143,5 @@ def test_aes_ccm_aead_api(backend, wycheproof):
     else:
         with pytest.raises(InvalidTag):
             aesccm.decrypt(iv, ct + tag, aad)
+  =======
+  >>>>>>> 2.3.x

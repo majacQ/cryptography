@@ -1,6 +1,7 @@
 Changelog
 =========
 
+  <<<<<<< 2.4.x
   <<<<<<< 2.9.x
 .. _v2-9-2:
 
@@ -221,6 +222,8 @@ Changelog
 * Added initial :doc:`OCSP </x509/ocsp>` support.
 * Added support for :class:`~cryptography.x509.PrecertPoison`.
 
+  =======
+  >>>>>>> 2.3.x
 .. _v2-3-1:
 
 2.3.1 - 2018-08-14

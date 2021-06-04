@@ -43,5 +43,68 @@ else
     fi
     $downstream_script install
     pip install .
+  <<<<<<< 2.4.x
     $downstream_script run
+  =======
+    case "${DOWNSTREAM}" in
+        pyopenssl)
+            git clone --depth=1 https://github.com/pyca/pyopenssl
+            cd pyopenssl
+            pip install -e ".[test]"
+            pytest tests
+            ;;
+        twisted)
+            git clone --depth=1 https://github.com/twisted/twisted
+            cd twisted
+            pip install -e .[tls,conch,http2]
+            python -m twisted.trial src/twisted
+            ;;
+        paramiko)
+            git clone --depth=1 https://github.com/paramiko/paramiko
+            cd paramiko
+            pip install -e .
+            pip install -r dev-requirements.txt
+            inv test
+            ;;
+        aws-encryption-sdk)
+            git clone --depth=1 https://github.com/awslabs/aws-encryption-sdk-python
+            cd aws-encryption-sdk-python
+            pip install -r test/requirements.txt
+            pip install -e .
+            pytest -m local test/
+            ;;
+        dynamodb-encryption-sdk)
+            git clone --depth=1 https://github.com/awslabs/aws-dynamodb-encryption-python
+            cd aws-dynamodb-encryption-python
+            pip install -r test/requirements.txt
+            pip install -e .
+            pytest -m "local and not slow and not veryslow and not nope"
+            ;;
+        certbot)
+            git clone --depth=1 https://github.com/certbot/certbot
+            cd certbot
+            pip install pytest pytest-mock mock
+            pip install -e acme
+            pip install -e .
+            pytest certbot/tests
+            pytest acme
+            ;;
+        certbot-josepy)
+            git clone --depth=1 https://github.com/certbot/josepy
+            cd josepy
+            pip install -e ".[tests]"
+            pytest src
+            ;;
+        urllib3)
+            git clone --depth 1 https://github.com/shazow/urllib3
+            cd urllib3
+            pip install -r ./dev-requirements.txt
+            pip install -e ".[socks]"
+            pytest test
+            ;;
+        *)
+            exit 1
+            ;;
+    esac
+  >>>>>>> 2.3.x
 fi
