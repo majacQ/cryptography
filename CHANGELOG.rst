@@ -1,6 +1,229 @@
 Changelog
 =========
 
+  <<<<<<< 2.4.x
+  <<<<<<< 2.9.x
+.. _v2-9-2:
+
+2.9.2 - 2020-04-22
+~~~~~~~~~~~~~~~~~~
+
+* Updated the macOS wheel to fix an issue where it would not run on macOS
+  versions older than 10.15.
+
+.. _v2-9-1:
+
+2.9.1 - 2020-04-21
+~~~~~~~~~~~~~~~~~~
+
+* Updated Windows, macOS, and ``manylinux`` wheels to be compiled with
+  OpenSSL 1.1.1g.
+
+.. _v2-9:
+
+2.9 - 2020-04-02
+~~~~~~~~~~~~~~~~
+
+* **BACKWARDS INCOMPATIBLE:** Support for Python 3.4 has been removed due to
+  low usage and maintenance burden.
+* **BACKWARDS INCOMPATIBLE:** Support for OpenSSL 1.0.1 has been removed.
+  Users on older version of OpenSSL will need to upgrade.
+* **BACKWARDS INCOMPATIBLE:** Support for LibreSSL 2.6.x has been removed.
+* Removed support for calling
+  :meth:`~cryptography.hazmat.primitives.asymmetric.x25519.X25519PublicKey.public_bytes`
+  with no arguments, as per our deprecation policy. You must now pass
+  ``encoding`` and ``format``.
+* **BACKWARDS INCOMPATIBLE:** Reversed the order in which
+  :meth:`~cryptography.x509.Name.rfc4514_string` returns the RDNs
+  as required by :rfc:`4514`.
+* Updated Windows, macOS, and ``manylinux`` wheels to be compiled with
+  OpenSSL 1.1.1f.
+* Added support for parsing
+  :attr:`~cryptography.x509.ocsp.OCSPResponse.single_extensions` in an OCSP
+  response.
+* :class:`~cryptography.x509.NameAttribute` values can now be empty strings.
+
+.. _v2-8:
+
+2.8 - 2019-10-16
+~~~~~~~~~~~~~~~~
+
+* Updated Windows, macOS, and ``manylinux`` wheels to be compiled with
+  OpenSSL 1.1.1d.
+* Added support for Python 3.8.
+* Added class methods
+  :meth:`Poly1305.generate_tag
+  <cryptography.hazmat.primitives.poly1305.Poly1305.generate_tag>`
+  and
+  :meth:`Poly1305.verify_tag
+  <cryptography.hazmat.primitives.poly1305.Poly1305.verify_tag>`
+  for Poly1305 sign and verify operations.
+* Deprecated support for OpenSSL 1.0.1. Support will be removed in
+  ``cryptography`` 2.9.
+* We now ship ``manylinux2010`` wheels in addition to our ``manylinux1``
+  wheels.
+* Added support for ``ed25519`` and ``ed448`` keys in the
+  :class:`~cryptography.x509.CertificateBuilder`,
+  :class:`~cryptography.x509.CertificateSigningRequestBuilder`,
+  :class:`~cryptography.x509.CertificateRevocationListBuilder` and
+  :class:`~cryptography.x509.ocsp.OCSPResponseBuilder`.
+* ``cryptography`` no longer depends on ``asn1crypto``.
+* :class:`~cryptography.x509.FreshestCRL` is now allowed as a
+  :class:`~cryptography.x509.CertificateRevocationList` extension.
+
+.. _v2-7:
+
+2.7 - 2019-05-30
+~~~~~~~~~~~~~~~~
+
+* **BACKWARDS INCOMPATIBLE:** We no longer distribute 32-bit ``manylinux1``
+  wheels. Continuing to produce them was a maintenance burden.
+* **BACKWARDS INCOMPATIBLE:** Removed the
+  ``cryptography.hazmat.primitives.mac.MACContext`` interface. The ``CMAC`` and
+  ``HMAC`` APIs have not changed, but they are no longer registered as
+  ``MACContext`` instances.
+* Updated Windows, macOS, and ``manylinux1`` wheels to be compiled with
+  OpenSSL 1.1.1c.
+* Removed support for running our tests with ``setup.py test``. Users
+  interested in running our tests can continue to follow the directions in our
+  :doc:`development documentation</development/getting-started>`.
+* Add support for :class:`~cryptography.hazmat.primitives.poly1305.Poly1305`
+  when using OpenSSL 1.1.1 or newer.
+* Support serialization with ``Encoding.OpenSSH`` and ``PublicFormat.OpenSSH``
+  in
+  :meth:`Ed25519PublicKey.public_bytes
+  <cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey.public_bytes>`
+  .
+* Correctly allow passing a ``SubjectKeyIdentifier`` to
+  :meth:`~cryptography.x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier`
+  and deprecate passing an ``Extension`` object. The documentation always
+  required ``SubjectKeyIdentifier`` but the implementation previously
+  required an ``Extension``.
+
+.. _v2-6-1:
+
+2.6.1 - 2019-02-27
+~~~~~~~~~~~~~~~~~~
+
+* Resolved an error in our build infrastructure that broke our Python3 wheels
+  for macOS and Linux.
+
+.. _v2-6:
+
+2.6 - 2019-02-27
+~~~~~~~~~~~~~~~~
+
+* **BACKWARDS INCOMPATIBLE:** Removed
+  ``cryptography.hazmat.primitives.asymmetric.utils.encode_rfc6979_signature``
+  and
+  ``cryptography.hazmat.primitives.asymmetric.utils.decode_rfc6979_signature``,
+  which had been deprecated for nearly 4 years. Use
+  :func:`~cryptography.hazmat.primitives.asymmetric.utils.encode_dss_signature`
+  and
+  :func:`~cryptography.hazmat.primitives.asymmetric.utils.decode_dss_signature`
+  instead.
+* **BACKWARDS INCOMPATIBLE**: Removed ``cryptography.x509.Certificate.serial``,
+  which had been deprecated for nearly 3 years. Use
+  :attr:`~cryptography.x509.Certificate.serial_number` instead.
+* Updated Windows, macOS, and ``manylinux1`` wheels to be compiled with
+  OpenSSL 1.1.1b.
+* Added support for :doc:`/hazmat/primitives/asymmetric/ed448` when using
+  OpenSSL 1.1.1b or newer.
+* Added support for :doc:`/hazmat/primitives/asymmetric/ed25519` when using
+  OpenSSL 1.1.1b or newer.
+* :func:`~cryptography.hazmat.primitives.serialization.load_ssh_public_key` can
+  now load ``ed25519`` public keys.
+* Add support for easily mapping an object identifier to its elliptic curve
+  class via
+  :func:`~cryptography.hazmat.primitives.asymmetric.ec.get_curve_for_oid`.
+* Add support for OpenSSL when compiled with the ``no-engine``
+  (``OPENSSL_NO_ENGINE``) flag.
+
+.. _v2-5:
+
+2.5 - 2019-01-22
+~~~~~~~~~~~~~~~~
+
+* **BACKWARDS INCOMPATIBLE:** :term:`U-label` strings were deprecated in
+  version 2.1, but this version removes the default ``idna`` dependency as
+  well. If you still need this deprecated path please install cryptography
+  with the ``idna`` extra: ``pip install cryptography[idna]``.
+* **BACKWARDS INCOMPATIBLE:** The minimum supported PyPy version is now 5.4.
+* Numerous classes and functions have been updated to allow :term:`bytes-like`
+  types for keying material and passwords, including symmetric algorithms, AEAD
+  ciphers, KDFs, loading asymmetric keys, and one time password classes.
+* Updated Windows, macOS, and ``manylinux1`` wheels to be compiled with
+  OpenSSL 1.1.1a.
+* Added support for :class:`~cryptography.hazmat.primitives.hashes.SHA512_224`
+  and :class:`~cryptography.hazmat.primitives.hashes.SHA512_256` when using
+  OpenSSL 1.1.1.
+* Added support for :class:`~cryptography.hazmat.primitives.hashes.SHA3_224`,
+  :class:`~cryptography.hazmat.primitives.hashes.SHA3_256`,
+  :class:`~cryptography.hazmat.primitives.hashes.SHA3_384`, and
+  :class:`~cryptography.hazmat.primitives.hashes.SHA3_512` when using OpenSSL
+  1.1.1.
+* Added support for :doc:`/hazmat/primitives/asymmetric/x448` when using
+  OpenSSL 1.1.1.
+* Added support for :class:`~cryptography.hazmat.primitives.hashes.SHAKE128`
+  and :class:`~cryptography.hazmat.primitives.hashes.SHAKE256` when using
+  OpenSSL 1.1.1.
+* Added initial support for parsing PKCS12 files with
+  :func:`~cryptography.hazmat.primitives.serialization.pkcs12.load_key_and_certificates`.
+* Added support for :class:`~cryptography.x509.IssuingDistributionPoint`.
+* Added ``rfc4514_string()`` method to
+  :meth:`x509.Name <cryptography.x509.Name.rfc4514_string>`,
+  :meth:`x509.RelativeDistinguishedName
+  <cryptography.x509.RelativeDistinguishedName.rfc4514_string>`, and
+  :meth:`x509.NameAttribute <cryptography.x509.NameAttribute.rfc4514_string>`
+  to format the name or component an :rfc:`4514` Distinguished Name string.
+* Added
+  :meth:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey.from_encoded_point`,
+  which immediately checks if the point is on the curve and supports compressed
+  points. Deprecated the previous method
+  :meth:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicNumbers.from_encoded_point`.
+* Added :attr:`~cryptography.x509.ocsp.OCSPResponse.signature_hash_algorithm`
+  to ``OCSPResponse``.
+* Updated :doc:`/hazmat/primitives/asymmetric/x25519` support to allow
+  additional serialization methods. Calling
+  :meth:`~cryptography.hazmat.primitives.asymmetric.x25519.X25519PublicKey.public_bytes`
+  with no arguments has been deprecated.
+* Added support for encoding compressed and uncompressed points via
+  :meth:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey.public_bytes`. Deprecated the previous method
+  :meth:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicNumbers.encode_point`.
+
+
+  =======
+  >>>>>>> 2.4.x
+.. _v2-4-2:
+
+2.4.2 - 2018-11-21
+~~~~~~~~~~~~~~~~~~
+
+* Updated Windows, macOS, and ``manylinux1`` wheels to be compiled with
+  OpenSSL 1.1.0j.
+
+.. _v2-4-1:
+
+2.4.1 - 2018-11-11
+~~~~~~~~~~~~~~~~~~
+
+* Fixed a build breakage in our ``manylinux1`` wheels.
+
+.. _v2-4:
+
+2.4 - 2018-11-11
+~~~~~~~~~~~~~~~~
+
+* **BACKWARDS INCOMPATIBLE:** Dropped support for LibreSSL 2.4.x.
+* Deprecated OpenSSL 1.0.1 support. OpenSSL 1.0.1 is no longer supported by
+  the OpenSSL project. At this time there is no time table for dropping
+  support, however we strongly encourage all users to upgrade or install
+  ``cryptography`` from a wheel.
+* Added initial :doc:`OCSP </x509/ocsp>` support.
+* Added support for :class:`~cryptography.x509.PrecertPoison`.
+
+  =======
+  >>>>>>> 2.3.x
 .. _v2-3-1:
 
 2.3.1 - 2018-08-14
@@ -19,6 +242,7 @@ Changelog
   allowed tag truncation by default which can allow tag forgery in some cases.
   The method now enforces the ``min_tag_length`` provided to the
   :class:`~cryptography.hazmat.primitives.ciphers.modes.GCM` constructor.
+  *CVE-2018-10903*
 * Added support for Python 3.7.
 * Added :meth:`~cryptography.fernet.Fernet.extract_timestamp` to get the
   authenticated timestamp of a :doc:`Fernet </fernet>` token.
@@ -1017,8 +1241,8 @@ Changelog
   :class:`~cryptography.fernet.MultiFernet`.
 * More bit-lengths are now supported for ``p`` and ``q`` when loading DSA keys
   from numbers.
-* Added :class:`~cryptography.hazmat.primitives.mac.MACContext` as a
-  common interface for CMAC and HMAC and deprecated ``CMACContext``.
+* Added ``MACContext`` as a common interface for CMAC and HMAC and
+  deprecated ``CMACContext``.
 * Added support for encoding and decoding :rfc:`6979` signatures in
   :doc:`/hazmat/primitives/asymmetric/utils`.
 * Added

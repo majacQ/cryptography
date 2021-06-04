@@ -4,11 +4,14 @@
 
 from __future__ import absolute_import, division, print_function
 
+import pretend
+
 import pytest
 
 from cryptography.exceptions import InternalError
 from cryptography.hazmat.bindings.openssl.binding import (
-    Binding, _consume_errors, _openssl_assert
+    Binding, _consume_errors, _openssl_assert, _verify_openssl_version,
+    _verify_package_version
 )
 
 
@@ -21,12 +24,15 @@ class TestOpenSSL(object):
 
     def test_crypto_lock_init(self):
         b = Binding()
-        if b.lib.CRYPTOGRAPHY_OPENSSL_110_OR_GREATER:
-            pytest.skip("Requires an older OpenSSL. Must be < 1.1.0")
 
         b.init_static_locks()
         lock_cb = b.lib.CRYPTO_get_locking_callback()
-        assert lock_cb != b.ffi.NULL
+        if b.lib.CRYPTOGRAPHY_OPENSSL_110_OR_GREATER:
+            assert lock_cb == b.ffi.NULL
+            assert b.lib.Cryptography_HAS_LOCKING_CALLBACKS == 0
+        else:
+            assert lock_cb != b.ffi.NULL
+            assert b.lib.Cryptography_HAS_LOCKING_CALLBACKS == 1
 
     def test_add_engine_more_than_once(self):
         b = Binding()
@@ -37,7 +43,8 @@ class TestOpenSSL(object):
         # Test that we're properly handling 32-bit unsigned on all platforms.
         b = Binding()
         assert b.lib.SSL_OP_ALL > 0
-        ctx = b.lib.SSL_CTX_new(b.lib.TLSv1_method())
+        ctx = b.lib.SSL_CTX_new(b.lib.SSLv23_method())
+        assert ctx != b.ffi.NULL
         ctx = b.ffi.gc(ctx, b.lib.SSL_CTX_free)
         current_options = b.lib.SSL_CTX_get_options(ctx)
         resp = b.lib.SSL_CTX_set_options(ctx, b.lib.SSL_OP_ALL)
@@ -49,7 +56,8 @@ class TestOpenSSL(object):
         # Test that we're properly handling 32-bit unsigned on all platforms.
         b = Binding()
         assert b.lib.SSL_OP_ALL > 0
-        ctx = b.lib.SSL_CTX_new(b.lib.TLSv1_method())
+        ctx = b.lib.SSL_CTX_new(b.lib.SSLv23_method())
+        assert ctx != b.ffi.NULL
         ctx = b.ffi.gc(ctx, b.lib.SSL_CTX_free)
         ssl = b.lib.SSL_new(ctx)
         ssl = b.ffi.gc(ssl, b.lib.SSL_free)
@@ -63,7 +71,8 @@ class TestOpenSSL(object):
         # Test that we're properly handling 32-bit unsigned on all platforms.
         b = Binding()
         assert b.lib.SSL_OP_ALL > 0
-        ctx = b.lib.SSL_CTX_new(b.lib.TLSv1_method())
+        ctx = b.lib.SSL_CTX_new(b.lib.SSLv23_method())
+        assert ctx != b.ffi.NULL
         ctx = b.ffi.gc(ctx, b.lib.SSL_CTX_free)
         ssl = b.lib.SSL_new(ctx)
         ssl = b.ffi.gc(ssl, b.lib.SSL_free)
@@ -112,3 +121,16 @@ class TestOpenSSL(object):
         )
         b._register_osrandom_engine()
         assert _consume_errors(b.lib) == []
+
+    def test_version_mismatch(self):
+        with pytest.raises(ImportError):
+            _verify_package_version("nottherightversion")
+
+    def test_verify_openssl_version(self, monkeypatch):
+        monkeypatch.delenv("CRYPTOGRAPHY_ALLOW_OPENSSL_101", raising=False)
+        lib = pretend.stub(
+            CRYPTOGRAPHY_OPENSSL_LESS_THAN_102=True,
+            CRYPTOGRAPHY_IS_LIBRESSL=False
+        )
+        with pytest.raises(RuntimeError):
+            _verify_openssl_version(lib)

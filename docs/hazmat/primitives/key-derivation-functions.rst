@@ -79,8 +79,8 @@ Different KDFs are suitable for different tasks such as:
     :param int iterations: The number of iterations to perform of the hash
         function. This can be used to control the length of time the operation
         takes. Higher numbers help mitigate brute force attacks against derived
-        keys. See OWASP's `Password Storage Cheat Sheet`_ for more
-        detailed recommendations if you intend to use this for password storage.
+        keys. A `more detailed description`_ can be consulted for additional
+        information.
     :param backend: An instance of
         :class:`~cryptography.hazmat.backends.interfaces.PBKDF2HMACBackend`.
 
@@ -92,8 +92,9 @@ Different KDFs are suitable for different tasks such as:
 
     .. method:: derive(key_material)
 
-        :param bytes key_material: The input key material. For PBKDF2 this
+        :param key_material: The input key material. For PBKDF2 this
             should be a password.
+        :type key_material: :term:`bytes-like`
         :return bytes: the derived key.
         :raises cryptography.exceptions.AlreadyFinalized: This is raised when
                                                           :meth:`derive` or
@@ -199,7 +200,8 @@ Different KDFs are suitable for different tasks such as:
 
     .. method:: derive(key_material)
 
-        :param bytes key_material: The input key material.
+        :param key_material: The input key material.
+        :type key_material: :term:`bytes-like`
         :return bytes: The derived key.
         :raises TypeError: This exception is raised if ``key_material`` is not
                            ``bytes``.
@@ -375,7 +377,8 @@ Different KDFs are suitable for different tasks such as:
 
     .. method:: derive(key_material)
 
-        :param bytes key_material: The input key material.
+        :param key_material: The input key material.
+        :type key_material: :term:`bytes-like`
         :return bytes: The derived key.
         :raises TypeError: This exception is raised if ``key_material`` is
                             not ``bytes``.
@@ -560,7 +563,8 @@ Different KDFs are suitable for different tasks such as:
 
     .. method:: derive(key_material)
 
-        :param bytes key_material: The input key material.
+        :param key_material: The input key material.
+        :type key_material: :term:`bytes-like`
         :return bytes: The derived key.
         :raises TypeError: This exception is raised if ``key_material`` is
                             not ``bytes``.
@@ -670,12 +674,12 @@ Different KDFs are suitable for different tasks such as:
         and ``context`` is ignored.
 
     :param backend: A cryptography backend
-        :class:`~cryptography.hazmat.backends.interfaces.HashBackend`
+        :class:`~cryptography.hazmat.backends.interfaces.HMACBackend`
         instance.
 
     :raises cryptography.exceptions.UnsupportedAlgorithm: This is raised
         if the provided ``backend`` does not implement
-        :class:`~cryptography.hazmat.backends.interfaces.HashBackend`
+        :class:`~cryptography.hazmat.backends.interfaces.HMACBackend`
 
     :raises TypeError: This exception is raised if ``label`` or ``context``
         is not ``bytes``. Also raised if ``rlen`` or ``llen`` is not ``int``.
@@ -686,7 +690,8 @@ Different KDFs are suitable for different tasks such as:
 
     .. method:: derive(key_material)
 
-        :param bytes key_material: The input key material.
+        :param key_material: The input key material.
+        :type key_material: :term:`bytes-like`
         :return bytes: The derived key.
         :raises TypeError: This exception is raised if ``key_material`` is
                             not ``bytes``.
@@ -784,6 +789,8 @@ Different KDFs are suitable for different tasks such as:
         power of 2.
     :param int r: Block size parameter.
     :param int p: Parallelization parameter.
+    :param backend: An instance of
+        :class:`~cryptography.hazmat.backends.interfaces.ScryptBackend`.
 
     The computational and memory cost of Scrypt can be adjusted by manipulating
     the 3 parameters: ``n``, ``r``, and ``p``. In general, the memory cost of
@@ -797,9 +804,6 @@ Different KDFs are suitable for different tasks such as:
     minimum value of ``n=2**14`` for interactive logins (t < 100ms), or
     ``n=2**20`` for more sensitive files (t < 5s).
 
-    :param backend: An instance of
-        :class:`~cryptography.hazmat.backends.interfaces.ScryptBackend`.
-
     :raises cryptography.exceptions.UnsupportedAlgorithm: This is raised if the
         provided ``backend`` does not implement
         :class:`~cryptography.hazmat.backends.interfaces.ScryptBackend`
@@ -811,7 +815,8 @@ Different KDFs are suitable for different tasks such as:
 
     .. method:: derive(key_material)
 
-        :param bytes key_material: The input key material.
+        :param key_material: The input key material.
+        :type key_material: :term:`bytes-like`
         :return bytes: the derived key.
         :raises TypeError: This exception is raised if ``key_material`` is not
                            ``bytes``.
@@ -898,8 +903,8 @@ Interface
 .. _`NIST SP 800-108`: https://csrc.nist.gov/publications/detail/sp/800-108/final
 .. _`NIST SP 800-56Ar2`: https://csrc.nist.gov/publications/detail/sp/800-56a/rev-2/final
 .. _`ANSI X9.63:2001`: https://webstore.ansi.org
-.. _`SEC 1 v2.0`: http://www.secg.org/sec1-v2.pdf
-.. _`Password Storage Cheat Sheet`: https://www.owasp.org/index.php/Password_Storage_Cheat_Sheet
+.. _`SEC 1 v2.0`: https://www.secg.org/sec1-v2.pdf
+.. _`more detailed description`: https://security.stackexchange.com/a/3993/43116
 .. _`PBKDF2`: https://en.wikipedia.org/wiki/PBKDF2
 .. _`key stretching`: https://en.wikipedia.org/wiki/Key_stretching
 .. _`HKDF`: https://en.wikipedia.org/wiki/HKDF

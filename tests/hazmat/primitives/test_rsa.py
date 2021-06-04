@@ -89,7 +89,7 @@ def _build_oaep_sha2_vectors():
             load_vectors_from_file(
                 os.path.join(
                     base_path,
-                    "oaep-{0}-{1}.txt".format(
+                    "oaep-{}-{}.txt".format(
                         mgf1alg.name, oaepalg.name
                     )
                 ),
@@ -112,7 +112,7 @@ def _skip_pss_hash_algorithm_unsupported(backend, hash_alg):
         )
     ):
         pytest.skip(
-            "Does not support {0} in MGF1 using PSS.".format(hash_alg.name)
+            "Does not support {} in MGF1 using PSS.".format(hash_alg.name)
         )
 
 
@@ -541,7 +541,8 @@ class TestRSASignature(object):
     )
     def test_use_after_finalize(self, backend):
         private_key = RSA_KEY_512.private_key(backend)
-        signer = private_key.signer(padding.PKCS1v15(), hashes.SHA1())
+        with pytest.warns(CryptographyDeprecationWarning):
+            signer = private_key.signer(padding.PKCS1v15(), hashes.SHA1())
         signer.update(b"sign me")
         signer.finalize()
         with pytest.raises(AlreadyFinalized):
@@ -634,6 +635,24 @@ class TestRSASignature(object):
         public_key.verify(signature, message, pss, hashes.SHA1())
 
     @pytest.mark.supported(
+        only_if=lambda backend: backend.hash_supported(
+            hashes.BLAKE2s(digest_size=32)),
+        skip_message="Does not support BLAKE2s",
+    )
+    @pytest.mark.supported(
+        only_if=lambda backend: backend.rsa_padding_supported(
+            padding.PSS(mgf=padding.MGF1(hashes.SHA1()), salt_length=0)
+        ),
+        skip_message="Does not support PSS."
+    )
+    def test_unsupported_hash(self, backend):
+        private_key = RSA_KEY_512.private_key(backend)
+        message = b"one little message"
+        pss = padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=0)
+        with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_HASH):
+            private_key.sign(message, pss, hashes.BLAKE2s(32))
+
+    @pytest.mark.supported(
         only_if=lambda backend: backend.rsa_padding_supported(
             padding.PSS(mgf=padding.MGF1(hashes.SHA1()), salt_length=0)
         ),
@@ -658,7 +677,8 @@ class TestRSASignature(object):
     )
     def test_prehashed_unsupported_in_signer_ctx(self, backend):
         private_key = RSA_KEY_512.private_key(backend)
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError), \
+                pytest.warns(CryptographyDeprecationWarning):
             private_key.signer(
                 padding.PKCS1v15(),
                 asym_utils.Prehashed(hashes.SHA1())
@@ -672,7 +692,8 @@ class TestRSASignature(object):
     )
     def test_prehashed_unsupported_in_verifier_ctx(self, backend):
         public_key = RSA_KEY_512.private_key(backend).public_key()
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError), \
+                pytest.warns(CryptographyDeprecationWarning):
             public_key.verifier(
                 b"0" * 64,
                 padding.PKCS1v15(),
@@ -702,14 +723,12 @@ class TestRSAVerification(object):
             e=public["public_exponent"],
             n=public["modulus"]
         ).public_key(backend)
-        with pytest.warns(CryptographyDeprecationWarning):
-            verifier = public_key.verifier(
-                binascii.unhexlify(example["signature"]),
-                padding.PKCS1v15(),
-                hashes.SHA1()
-            )
-        verifier.update(binascii.unhexlify(example["message"]))
-        verifier.verify()
+        public_key.verify(
+            binascii.unhexlify(example["signature"]),
+            binascii.unhexlify(example["message"]),
+            padding.PKCS1v15(),
+            hashes.SHA1()
+        )
 
     @pytest.mark.supported(
         only_if=lambda backend: backend.rsa_padding_supported(
@@ -932,11 +951,12 @@ class TestRSAVerification(object):
             b"sign me", padding.PKCS1v15(), hashes.SHA1()
         )
 
-        verifier = public_key.verifier(
-            signature,
-            padding.PKCS1v15(),
-            hashes.SHA1()
-        )
+        with pytest.warns(CryptographyDeprecationWarning):
+            verifier = public_key.verifier(
+                signature,
+                padding.PKCS1v15(),
+                hashes.SHA1()
+            )
         verifier.update(b"sign me")
         verifier.verify()
         with pytest.raises(AlreadyFinalized):
@@ -962,7 +982,8 @@ class TestRSAVerification(object):
         public_key = RSA_KEY_512.public_numbers.public_key(backend)
         signature = 1234
 
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError), \
+                pytest.warns(CryptographyDeprecationWarning):
             public_key.verifier(
                 signature,
                 padding.PKCS1v15(),
@@ -1832,304 +1853,81 @@ class TestRSANumbers(object):
         with pytest.raises(TypeError):
             rsa.RSAPublicNumbers(e=1, n=None)
 
-    def test_private_numbers_invalid_types(self):
-        public_numbers = rsa.RSAPublicNumbers(e=1, n=15)
-
+    @pytest.mark.parametrize(
+        ("p", "q", "d", "dmp1", "dmq1", "iqmp", "public_numbers"),
+        [
+            (None, 5, 1, 1, 1, 2, rsa.RSAPublicNumbers(e=1, n=15)),
+            (3, None, 1, 1, 1, 2, rsa.RSAPublicNumbers(e=1, n=15)),
+            (3, 5, None, 1, 1, 2, rsa.RSAPublicNumbers(e=1, n=15)),
+            (3, 5, 1, None, 1, 2, rsa.RSAPublicNumbers(e=1, n=15)),
+            (3, 5, 1, 1, None, 2, rsa.RSAPublicNumbers(e=1, n=15)),
+            (3, 5, 1, 1, 1, None, rsa.RSAPublicNumbers(e=1, n=15)),
+            (3, 5, 1, 1, 1, 2, None),
+        ]
+    )
+    def test_private_numbers_invalid_types(self, p, q, d, dmp1, dmq1, iqmp,
+                                           public_numbers):
         with pytest.raises(TypeError):
             rsa.RSAPrivateNumbers(
-                p=None,
-                q=5,
-                d=1,
-                dmp1=1,
-                dmq1=1,
-                iqmp=2,
+                p=p, q=q,
+                d=d,
+                dmp1=dmp1,
+                dmq1=dmq1,
+                iqmp=iqmp,
                 public_numbers=public_numbers
             )
 
-        with pytest.raises(TypeError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=None,
-                d=1,
-                dmp1=1,
-                dmq1=1,
-                iqmp=2,
-                public_numbers=public_numbers
-            )
-
-        with pytest.raises(TypeError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=5,
-                d=None,
-                dmp1=1,
-                dmq1=1,
-                iqmp=2,
-                public_numbers=public_numbers
-            )
-
-        with pytest.raises(TypeError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=5,
-                d=1,
-                dmp1=None,
-                dmq1=1,
-                iqmp=2,
-                public_numbers=public_numbers
-            )
-
-        with pytest.raises(TypeError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=5,
-                d=1,
-                dmp1=1,
-                dmq1=None,
-                iqmp=2,
-                public_numbers=public_numbers
-            )
-
-        with pytest.raises(TypeError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=5,
-                d=1,
-                dmp1=1,
-                dmq1=1,
-                iqmp=None,
-                public_numbers=public_numbers
-            )
-
-        with pytest.raises(TypeError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=5,
-                d=1,
-                dmp1=1,
-                dmq1=1,
-                iqmp=2,
-                public_numbers=None
-            )
-
-    def test_invalid_public_numbers_argument_values(self, backend):
+    @pytest.mark.parametrize(
+        ("e", "n"),
+        [
+            (7, 2),  # modulus < 3
+            (1, 15),  # public_exponent < 3
+            (17, 15),  # public_exponent > modulus
+            (14, 15),  # public_exponent not odd
+        ]
+    )
+    def test_invalid_public_numbers_argument_values(self, e, n, backend):
         # Start with public_exponent=7, modulus=15. Then change one value at a
         # time to test the bounds.
 
-        # Test a modulus < 3.
-
         with pytest.raises(ValueError):
-            rsa.RSAPublicNumbers(e=7, n=2).public_key(backend)
+            rsa.RSAPublicNumbers(e=e, n=n).public_key(backend)
 
-        # Test a public_exponent < 3
-        with pytest.raises(ValueError):
-            rsa.RSAPublicNumbers(e=1, n=15).public_key(backend)
-
-        # Test a public_exponent > modulus
-        with pytest.raises(ValueError):
-            rsa.RSAPublicNumbers(e=17, n=15).public_key(backend)
-
-        # Test a public_exponent that is not odd.
-        with pytest.raises(ValueError):
-            rsa.RSAPublicNumbers(e=14, n=15).public_key(backend)
-
-    def test_invalid_private_numbers_argument_values(self, backend):
+    @pytest.mark.parametrize(
+        ("p", "q", "d", "dmp1", "dmq1", "iqmp", "e", "n"),
+        [
+            (3, 11, 3, 1, 3, 2, 7, 2),  # modulus < 3
+            (3, 11, 3, 1, 3, 2, 7, 35),  # modulus != p * q
+            (37, 11, 3, 1, 3, 2, 7, 33),  # p > modulus
+            (3, 37, 3, 1, 3, 2, 7, 33),  # q > modulus
+            (3, 11, 3, 35, 3, 2, 7, 33),  # dmp1 > modulus
+            (3, 11, 3, 1, 35, 2, 7, 33),  # dmq1 > modulus
+            (3, 11, 3, 1, 3, 35, 7, 33),  # iqmp > modulus
+            (3, 11, 37, 1, 3, 2, 7, 33),  # d > modulus
+            (3, 11, 3, 1, 3, 2, 1, 33),  # public_exponent < 3
+            (3, 11, 3, 1, 3, 35, 65537, 33),  # public_exponent > modulus
+            (3, 11, 3, 1, 3, 2, 6, 33),  # public_exponent is not odd
+            (3, 11, 3, 2, 3, 2, 7, 33),  # dmp1 is not odd
+            (3, 11, 3, 1, 4, 2, 7, 33),  # dmq1 is not odd
+        ]
+    )
+    def test_invalid_private_numbers_argument_values(self, p, q, d, dmp1, dmq1,
+                                                     iqmp, e, n, backend):
         # Start with p=3, q=11, private_exponent=3, public_exponent=7,
         # modulus=33, dmp1=1, dmq1=3, iqmp=2. Then change one value at
         # a time to test the bounds.
 
-        # Test a modulus < 3.
         with pytest.raises(ValueError):
             rsa.RSAPrivateNumbers(
-                p=3,
-                q=11,
-                d=3,
-                dmp1=1,
-                dmq1=3,
-                iqmp=2,
+                p=p,
+                q=q,
+                d=d,
+                dmp1=dmp1,
+                dmq1=dmq1,
+                iqmp=iqmp,
                 public_numbers=rsa.RSAPublicNumbers(
-                    e=7,
-                    n=2
-                )
-            ).private_key(backend)
-
-        # Test a modulus != p * q.
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=11,
-                d=3,
-                dmp1=1,
-                dmq1=3,
-                iqmp=2,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=7,
-                    n=35
-                )
-            ).private_key(backend)
-
-        # Test a p > modulus.
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=37,
-                q=11,
-                d=3,
-                dmp1=1,
-                dmq1=3,
-                iqmp=2,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=7,
-                    n=33
-                )
-            ).private_key(backend)
-
-        # Test a q > modulus.
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=37,
-                d=3,
-                dmp1=1,
-                dmq1=3,
-                iqmp=2,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=7,
-                    n=33
-                )
-            ).private_key(backend)
-
-        # Test a dmp1 > modulus.
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=11,
-                d=3,
-                dmp1=35,
-                dmq1=3,
-                iqmp=2,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=7,
-                    n=33
-                )
-            ).private_key(backend)
-
-        # Test a dmq1 > modulus.
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=11,
-                d=3,
-                dmp1=1,
-                dmq1=35,
-                iqmp=2,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=7,
-                    n=33
-                )
-            ).private_key(backend)
-
-        # Test an iqmp > modulus.
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=11,
-                d=3,
-                dmp1=1,
-                dmq1=3,
-                iqmp=35,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=7,
-                    n=33
-                )
-            ).private_key(backend)
-
-        # Test a private_exponent > modulus
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=11,
-                d=37,
-                dmp1=1,
-                dmq1=3,
-                iqmp=2,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=7,
-                    n=33
-                )
-            ).private_key(backend)
-
-        # Test a public_exponent < 3
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=11,
-                d=3,
-                dmp1=1,
-                dmq1=3,
-                iqmp=2,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=1,
-                    n=33
-                )
-            ).private_key(backend)
-
-        # Test a public_exponent > modulus
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=11,
-                d=3,
-                dmp1=1,
-                dmq1=3,
-                iqmp=35,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=65537,
-                    n=33
-                )
-            ).private_key(backend)
-
-        # Test a public_exponent that is not odd.
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=11,
-                d=3,
-                dmp1=1,
-                dmq1=3,
-                iqmp=2,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=6,
-                    n=33
-                )
-            ).private_key(backend)
-
-        # Test a dmp1 that is not odd.
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=11,
-                d=3,
-                dmp1=2,
-                dmq1=3,
-                iqmp=2,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=7,
-                    n=33
-                )
-            ).private_key(backend)
-
-        # Test a dmq1 that is not odd.
-        with pytest.raises(ValueError):
-            rsa.RSAPrivateNumbers(
-                p=3,
-                q=11,
-                d=3,
-                dmp1=1,
-                dmq1=4,
-                iqmp=2,
-                public_numbers=rsa.RSAPublicNumbers(
-                    e=7,
-                    n=33
+                    e=e,
+                    n=n
                 )
             ).private_key(backend)
 
@@ -2262,6 +2060,20 @@ class TestRSAPrivateKeySerialization(object):
         loaded_priv_num = loaded_key.private_numbers()
         priv_num = key.private_numbers()
         assert loaded_priv_num == priv_num
+
+    @pytest.mark.parametrize(
+        ("encoding", "fmt"),
+        [
+            (serialization.Encoding.Raw, serialization.PrivateFormat.PKCS8),
+            (serialization.Encoding.DER, serialization.PrivateFormat.Raw),
+            (serialization.Encoding.Raw, serialization.PrivateFormat.Raw),
+            (serialization.Encoding.X962, serialization.PrivateFormat.PKCS8),
+        ]
+    )
+    def test_private_bytes_rejects_invalid(self, encoding, fmt, backend):
+        key = RSA_KEY_2048.private_key(backend)
+        with pytest.raises(ValueError):
+            key.private_bytes(encoding, fmt, serialization.NoEncryption())
 
     @pytest.mark.parametrize(
         ("fmt", "password"),
@@ -2488,3 +2300,30 @@ class TestRSAPEMPublicKeySerialization(object):
         key = RSA_KEY_2048.private_key(backend).public_key()
         with pytest.raises(TypeError):
             key.public_bytes(serialization.Encoding.PEM, "invalidformat")
+
+    @pytest.mark.parametrize(
+        ("encoding", "fmt"),
+        [
+            (
+                serialization.Encoding.Raw,
+                serialization.PublicFormat.SubjectPublicKeyInfo
+            ),
+            (serialization.Encoding.Raw, serialization.PublicFormat.PKCS1),
+        ] + list(itertools.product(
+            [
+                serialization.Encoding.Raw,
+                serialization.Encoding.X962,
+                serialization.Encoding.PEM,
+                serialization.Encoding.DER
+            ],
+            [
+                serialization.PublicFormat.Raw,
+                serialization.PublicFormat.UncompressedPoint,
+                serialization.PublicFormat.CompressedPoint
+            ]
+        ))
+    )
+    def test_public_bytes_rejects_invalid(self, encoding, fmt, backend):
+        key = RSA_KEY_2048.private_key(backend).public_key()
+        with pytest.raises(ValueError):
+            key.public_bytes(encoding, fmt)

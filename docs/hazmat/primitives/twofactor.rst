@@ -41,9 +41,10 @@ codes (HMAC).
         >>> hotp_value = hotp.generate(0)
         >>> hotp.verify(hotp_value, 0)
 
-    :param bytes key: Per-user secret key. This value must be kept secret
-                      and be at least 128 :term:`bits`. It is recommended that
-                      the key be 160 bits.
+    :param key: Per-user secret key. This value must be kept secret
+                and be at least 128 :term:`bits`. It is recommended that
+                the key be 160 bits.
+    :type key: :term:`bytes-like`
     :param int length: Length of generated one time password as ``int``.
     :param cryptography.hazmat.primitives.hashes.HashAlgorithm algorithm: A
         :class:`~cryptography.hazmat.primitives.hashes`
@@ -163,9 +164,10 @@ similar to the following code.
         >>> totp_value = totp.generate(time_value)
         >>> totp.verify(totp_value, time_value)
 
-    :param bytes key: Per-user secret key. This value must be kept secret
-                      and be at least 128 :term:`bits`. It is recommended that the
-                      key be 160 bits.
+    :param key: Per-user secret key. This value must be kept secret
+                and be at least 128 :term:`bits`. It is recommended that the
+                key be 160 bits.
+    :type key: :term:`bytes-like`
     :param int length: Length of generated one time password as ``int``.
     :param cryptography.hazmat.primitives.hashes.HashAlgorithm algorithm: A
         :class:`~cryptography.hazmat.primitives.hashes`
@@ -212,7 +214,7 @@ similar to the following code.
 
         :param account_name: The display name of account, such as
             ``'Alice Smith'`` or ``'alice@example.com'``.
-        :type: :term:`text`
+        :type account_name: :term:`text`
         :param issuer: The optional display name of issuer. This is typically
             the provider or service the user wants to access using the OTP
             token.
@@ -222,11 +224,11 @@ similar to the following code.
 Provisioning URI
 ~~~~~~~~~~~~~~~~
 
-The provisioning URI of HOTP and TOTP is not actual the part of RFC 4226 and
-RFC 6238, but a `spec of Google Authenticator`_. It is widely supported by web
-sites and mobile applications which are using Two-Factor authentication.
+The provisioning URI of HOTP and TOTP is a `feature of Google Authenticator`_
+and not actually part of the HOTP or TOTP RFCs. However, it is widely supported
+by web sites and mobile applications which are using Two-Factor authentication.
 
-For generating a provisioning URI, you could use the ``get_provisioning_uri``
+For generating a provisioning URI you can use the ``get_provisioning_uri``
 method of HOTP/TOTP instances.
 
 .. code-block:: python
@@ -241,5 +243,5 @@ method of HOTP/TOTP instances.
 A common usage is encoding the provisioning URI into QR code and guiding users
 to scan it with Two-Factor authentication applications in their mobile devices.
 
-.. _`spec of Google Authenticator`: https://github.com/google/google-authenticator/wiki/Key-Uri-Format
+.. _`feature of Google Authenticator`: https://github.com/google/google-authenticator/wiki/Key-Uri-Format
 .. _`Issue #2915`: https://github.com/pyca/cryptography/issues/2915

@@ -13,6 +13,7 @@ from cryptography.hazmat.backends.interfaces import CipherBackend
 from cryptography.hazmat.primitives.ciphers import algorithms, base, modes
 
 from .utils import _load_all_params, generate_aead_test, generate_encrypt_test
+from ...doubles import DummyMode
 from ...utils import load_nist_vectors
 
 
@@ -58,7 +59,7 @@ class TestAESModeXTS(object):
 )
 @pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestAESModeCBC(object):
-    test_CBC = generate_encrypt_test(
+    test_cbc = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "CBC"),
         [
@@ -91,7 +92,7 @@ class TestAESModeCBC(object):
 )
 @pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestAESModeECB(object):
-    test_ECB = generate_encrypt_test(
+    test_ecb = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "ECB"),
         [
@@ -124,7 +125,7 @@ class TestAESModeECB(object):
 )
 @pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestAESModeOFB(object):
-    test_OFB = generate_encrypt_test(
+    test_ofb = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "OFB"),
         [
@@ -157,7 +158,7 @@ class TestAESModeOFB(object):
 )
 @pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestAESModeCFB(object):
-    test_CFB = generate_encrypt_test(
+    test_cfb = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "CFB"),
         [
@@ -190,7 +191,7 @@ class TestAESModeCFB(object):
 )
 @pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestAESModeCFB8(object):
-    test_CFB8 = generate_encrypt_test(
+    test_cfb8 = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "CFB"),
         [
@@ -223,7 +224,7 @@ class TestAESModeCFB8(object):
 )
 @pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestAESModeCTR(object):
-    test_CTR = generate_encrypt_test(
+    test_ctr = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "CTR"),
         ["aes-128-ctr.txt", "aes-192-ctr.txt", "aes-256-ctr.txt"],
@@ -240,7 +241,7 @@ class TestAESModeCTR(object):
 )
 @pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestAESModeGCM(object):
-    test_GCM = generate_aead_test(
+    test_gcm = generate_aead_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "GCM"),
         [
@@ -455,3 +456,48 @@ class TestAESModeGCM(object):
         ).decryptor()
         with pytest.raises(ValueError):
             decryptor.finalize_with_tag(b"tagtooshort")
+
+    def test_buffer_protocol(self, backend):
+        data = bytearray(b"helloworld")
+        enc = base.Cipher(
+            algorithms.AES(bytearray(b"\x00" * 16)),
+            modes.GCM(bytearray(b"\x00" * 12)),
+            backend
+        ).encryptor()
+        enc.authenticate_additional_data(bytearray(b"foo"))
+        ct = enc.update(data) + enc.finalize()
+        dec = base.Cipher(
+            algorithms.AES(bytearray(b"\x00" * 16)),
+            modes.GCM(bytearray(b"\x00" * 12), enc.tag),
+            backend
+        ).decryptor()
+        dec.authenticate_additional_data(bytearray(b"foo"))
+        pt = dec.update(ct) + dec.finalize()
+        assert pt == data
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        modes.CBC(bytearray(b"\x00" * 16)),
+        modes.CTR(bytearray(b"\x00" * 16)),
+        modes.OFB(bytearray(b"\x00" * 16)),
+        modes.CFB(bytearray(b"\x00" * 16)),
+        modes.CFB8(bytearray(b"\x00" * 16)),
+        modes.XTS(bytearray(b"\x00" * 16)),
+        # Add a dummy mode for coverage of the cipher_supported check.
+        DummyMode(),
+    ]
+)
+@pytest.mark.requires_backend_interface(interface=CipherBackend)
+def test_buffer_protocol_alternate_modes(mode, backend):
+    data = bytearray(b"sixteen_byte_msg")
+    key = algorithms.AES(bytearray(os.urandom(32)))
+    if not backend.cipher_supported(key, mode):
+        pytest.skip("AES in {} mode not supported".format(mode.name))
+    cipher = base.Cipher(key, mode, backend)
+    enc = cipher.encryptor()
+    ct = enc.update(data) + enc.finalize()
+    dec = cipher.decryptor()
+    pt = dec.update(ct) + dec.finalize()
+    assert pt == data

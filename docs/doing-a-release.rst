@@ -3,13 +3,28 @@ Doing a release
 
 Doing a release of ``cryptography`` requires a few steps.
 
+Security Releases
+-----------------
+
+In addition to the other steps described below, for a release which fixes a
+security vulnerability, you should also include the following steps:
+
+* Request a `CVE from MITRE`_. Once you have received the CVE, it should be
+  included in the :doc:`changelog`. Ideally you should request the CVE before
+  starting the release process so that the CVE is available at the time of the
+  release.
+* Ensure that the :doc:`changelog` entry credits whoever reported the issue.
+* The release should be announced on the `oss-security`_ mailing list, in
+  addition to the regular announcement lists.
+
 Verifying OpenSSL version
 -------------------------
 
 The release process creates wheels bundling OpenSSL for Windows, macOS, and
-Linux. Check that the Windows and macOS Jenkins builders have the latest
+Linux. Check that the Windows and macOS Azure Pipelines builders have the latest
 version of OpenSSL installed and verify that the latest version is present in
-the ``pyca/cryptography-manylinux1`` docker containers. If anything is out
+both the ``pyca/cryptography-manylinux1`` and
+``pyca/cryptography-manylinux2010`` docker containers. If anything is out
 of date follow the instructions for upgrading OpenSSL.
 
 Upgrading OpenSSL
@@ -78,6 +93,8 @@ Post-release tasks
 * Send an email to the `mailing list`_ and `python-announce`_ announcing the
   release.
 
+.. _`CVE from MITRE`: https://cveform.mitre.org/
+.. _`oss-security`: https://www.openwall.com/lists/oss-security/
 .. _`upgrading OpenSSL issue template`: https://github.com/pyca/cryptography/issues/new?template=openssl-release.md
 .. _`milestone`: https://github.com/pyca/cryptography/milestones
 .. _`mailing list`: https://mail.python.org/mailman/listinfo/cryptography-dev

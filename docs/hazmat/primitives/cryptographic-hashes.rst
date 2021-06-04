@@ -102,6 +102,20 @@ SHA-2 family
     SHA-512 is a cryptographic hash function from the SHA-2 family and is
     standardized by NIST. It produces a 512-bit message digest.
 
+.. class:: SHA512_224()
+
+    .. versionadded:: 2.5
+
+    SHA-512/224 is a cryptographic hash function from the SHA-2 family and is
+    standardized by NIST. It produces a 224-bit message digest.
+
+.. class:: SHA512_256()
+
+    .. versionadded:: 2.5
+
+    SHA-512/256 is a cryptographic hash function from the SHA-2 family and is
+    standardized by NIST. It produces a 256-bit message digest.
+
 BLAKE2
 ~~~~~~
 
@@ -131,6 +145,73 @@ SHA-family of hashes.
 
     :param int digest_size: The desired size of the hash output in bytes. Only
         ``32`` is supported at this time.
+
+    :raises ValueError: If the ``digest_size`` is invalid.
+
+SHA-3 family
+~~~~~~~~~~~~
+
+SHA-3 is the most recent NIST secure hash algorithm standard. Despite the
+larger number SHA-3 is not considered to be better than SHA-2. Instead, it uses
+a significantly different internal structure so that **if** an attack appears
+against SHA-2 it is unlikely to apply to SHA-3. SHA-3 is significantly slower
+than SHA-2 so at this time most users should choose SHA-2.
+
+.. class:: SHA3_224()
+
+    .. versionadded:: 2.5
+
+    SHA3/224 is a cryptographic hash function from the SHA-3 family and is
+    standardized by NIST. It produces a 224-bit message digest.
+
+.. class:: SHA3_256()
+
+    .. versionadded:: 2.5
+
+    SHA3/256 is a cryptographic hash function from the SHA-3 family and is
+    standardized by NIST. It produces a 256-bit message digest.
+
+.. class:: SHA3_384()
+
+    .. versionadded:: 2.5
+
+    SHA3/384 is a cryptographic hash function from the SHA-3 family and is
+    standardized by NIST. It produces a 384-bit message digest.
+
+.. class:: SHA3_512()
+
+    .. versionadded:: 2.5
+
+    SHA3/512 is a cryptographic hash function from the SHA-3 family and is
+    standardized by NIST. It produces a 512-bit message digest.
+
+.. class:: SHAKE128(digest_size)
+
+    .. versionadded:: 2.5
+
+    SHAKE128 is an extendable output function (XOF) based on the same core
+    permutations as SHA3. It allows the caller to obtain an arbitrarily long
+    digest length. Longer lengths, however, do not increase security or
+    collision resistance and lengths shorter than 128 bit (16 bytes) will
+    decrease it.
+
+    :param int digest_size: The length of output desired. Must be greater than
+        zero.
+
+    :raises ValueError: If the ``digest_size`` is invalid.
+
+.. class:: SHAKE256(digest_size)
+
+    .. versionadded:: 2.5
+
+    SHAKE256 is an extendable output function (XOF) based on the same core
+    permutations as SHA3. It allows the caller to obtain an arbitrarily long
+    digest length. Longer lengths, however, do not increase security or
+    collision resistance and lengths shorter than 256 bit (32 bytes) will
+    decrease it.
+
+    :param int digest_size: The length of output desired. Must be greater than
+        zero.
 
     :raises ValueError: If the ``digest_size`` is invalid.
 

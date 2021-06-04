@@ -15,8 +15,10 @@ from cryptography.hazmat.backends.interfaces import (
     DSABackend, EllipticCurveBackend, RSABackend, X509Backend
 )
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.x509.oid import AuthorityInformationAccessOID, NameOID
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, ed448
+from cryptography.x509.oid import (
+    AuthorityInformationAccessOID, NameOID, SignatureAlgorithmOID
+)
 
 from ..hazmat.primitives.fixtures_dsa import DSA_KEY_2048
 from ..hazmat.primitives.fixtures_ec import EC_KEY_SECP256R1
@@ -62,10 +64,10 @@ class TestCertificateRevocationListBuilder(object):
         with pytest.raises(TypeError):
             builder.last_update("notadatetime")
 
-    def test_last_update_before_unix_epoch(self):
+    def test_last_update_before_1950(self):
         builder = x509.CertificateRevocationListBuilder()
         with pytest.raises(ValueError):
-            builder.last_update(datetime.datetime(1960, 8, 10))
+            builder.last_update(datetime.datetime(1940, 8, 10))
 
     def test_set_last_update_twice(self):
         builder = x509.CertificateRevocationListBuilder().last_update(
@@ -97,10 +99,10 @@ class TestCertificateRevocationListBuilder(object):
         with pytest.raises(TypeError):
             builder.next_update("notadatetime")
 
-    def test_next_update_before_unix_epoch(self):
+    def test_next_update_before_1950(self):
         builder = x509.CertificateRevocationListBuilder()
         with pytest.raises(ValueError):
-            builder.next_update(datetime.datetime(1960, 8, 10))
+            builder.next_update(datetime.datetime(1940, 8, 10))
 
     def test_set_next_update_twice(self):
         builder = x509.CertificateRevocationListBuilder().next_update(
@@ -290,6 +292,39 @@ class TestCertificateRevocationListBuilder(object):
 
     @pytest.mark.requires_backend_interface(interface=RSABackend)
     @pytest.mark.requires_backend_interface(interface=X509Backend)
+    def test_freshestcrl_extension(self, backend):
+        private_key = RSA_KEY_2048.private_key(backend)
+        last_update = datetime.datetime(2002, 1, 1, 12, 1)
+        next_update = datetime.datetime(2030, 1, 1, 12, 1)
+        freshest = x509.FreshestCRL([
+            x509.DistributionPoint([
+                x509.UniformResourceIdentifier(u"http://d.om/delta"),
+            ], None, None, None)
+        ])
+        builder = x509.CertificateRevocationListBuilder().issuer_name(
+            x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, u"cryptography.io CA")
+            ])
+        ).last_update(
+            last_update
+        ).next_update(
+            next_update
+        ).add_extension(
+            freshest, False
+        )
+
+        crl = builder.sign(private_key, hashes.SHA256(), backend)
+        assert len(crl) == 0
+        assert len(crl.extensions) == 1
+        ext1 = crl.extensions.get_extension_for_class(x509.FreshestCRL)
+        assert ext1.critical is False
+        assert isinstance(ext1.value[0], x509.DistributionPoint)
+        uri = ext1.value[0].full_name[0]
+        assert isinstance(uri, x509.UniformResourceIdentifier)
+        assert uri.value == u"http://d.om/delta"
+
+    @pytest.mark.requires_backend_interface(interface=RSABackend)
+    @pytest.mark.requires_backend_interface(interface=X509Backend)
     def test_add_unsupported_extension(self, backend):
         private_key = RSA_KEY_2048.private_key(backend)
         last_update = datetime.datetime(2002, 1, 1, 12, 1)
@@ -345,6 +380,54 @@ class TestCertificateRevocationListBuilder(object):
 
         with pytest.raises(TypeError):
             builder.sign(private_key, object(), backend)
+
+    @pytest.mark.supported(
+        only_if=lambda backend: backend.ed25519_supported(),
+        skip_message="Requires OpenSSL with Ed25519 support"
+    )
+    @pytest.mark.requires_backend_interface(interface=X509Backend)
+    def test_sign_with_invalid_hash_ed25519(self, backend):
+        private_key = ed25519.Ed25519PrivateKey.generate()
+        last_update = datetime.datetime(2002, 1, 1, 12, 1)
+        next_update = datetime.datetime(2030, 1, 1, 12, 1)
+        builder = x509.CertificateRevocationListBuilder().issuer_name(
+            x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, u"cryptography.io CA")
+            ])
+        ).last_update(
+            last_update
+        ).next_update(
+            next_update
+        )
+
+        with pytest.raises(ValueError):
+            builder.sign(private_key, object(), backend)
+        with pytest.raises(ValueError):
+            builder.sign(private_key, hashes.SHA256(), backend)
+
+    @pytest.mark.supported(
+        only_if=lambda backend: backend.ed448_supported(),
+        skip_message="Requires OpenSSL with Ed448 support"
+    )
+    @pytest.mark.requires_backend_interface(interface=X509Backend)
+    def test_sign_with_invalid_hash_ed448(self, backend):
+        private_key = ed448.Ed448PrivateKey.generate()
+        last_update = datetime.datetime(2002, 1, 1, 12, 1)
+        next_update = datetime.datetime(2030, 1, 1, 12, 1)
+        builder = x509.CertificateRevocationListBuilder().issuer_name(
+            x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, u"cryptography.io CA")
+            ])
+        ).last_update(
+            last_update
+        ).next_update(
+            next_update
+        )
+
+        with pytest.raises(ValueError):
+            builder.sign(private_key, object(), backend)
+        with pytest.raises(ValueError):
+            builder.sign(private_key, hashes.SHA256(), backend)
 
     @pytest.mark.requires_backend_interface(interface=DSABackend)
     @pytest.mark.requires_backend_interface(interface=X509Backend)
@@ -425,6 +508,104 @@ class TestCertificateRevocationListBuilder(object):
         )
 
         crl = builder.sign(private_key, hashes.SHA256(), backend)
+        assert crl.extensions.get_extension_for_class(
+            x509.IssuerAlternativeName
+        ).value == ian
+        assert crl[0].serial_number == revoked_cert0.serial_number
+        assert crl[0].revocation_date == revoked_cert0.revocation_date
+        assert len(crl[0].extensions) == 1
+        ext = crl[0].extensions.get_extension_for_class(x509.InvalidityDate)
+        assert ext.critical is False
+        assert ext.value == invalidity_date
+
+    @pytest.mark.supported(
+        only_if=lambda backend: backend.ed25519_supported(),
+        skip_message="Requires OpenSSL with Ed25519 support"
+    )
+    @pytest.mark.requires_backend_interface(interface=X509Backend)
+    def test_sign_ed25519_key(self, backend):
+        private_key = ed25519.Ed25519PrivateKey.generate()
+        invalidity_date = x509.InvalidityDate(
+            datetime.datetime(2002, 1, 1, 0, 0)
+        )
+        ian = x509.IssuerAlternativeName([
+            x509.UniformResourceIdentifier(u"https://cryptography.io"),
+        ])
+        revoked_cert0 = x509.RevokedCertificateBuilder().serial_number(
+            2
+        ).revocation_date(
+            datetime.datetime(2012, 1, 1, 1, 1)
+        ).add_extension(
+            invalidity_date, False
+        ).build(backend)
+        last_update = datetime.datetime(2002, 1, 1, 12, 1)
+        next_update = datetime.datetime(2030, 1, 1, 12, 1)
+        builder = x509.CertificateRevocationListBuilder().issuer_name(
+            x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, u"cryptography.io CA")
+            ])
+        ).last_update(
+            last_update
+        ).next_update(
+            next_update
+        ).add_revoked_certificate(
+            revoked_cert0
+        ).add_extension(
+            ian, False
+        )
+
+        crl = builder.sign(private_key, None, backend)
+        assert crl.signature_hash_algorithm is None
+        assert crl.signature_algorithm_oid == SignatureAlgorithmOID.ED25519
+        assert crl.extensions.get_extension_for_class(
+            x509.IssuerAlternativeName
+        ).value == ian
+        assert crl[0].serial_number == revoked_cert0.serial_number
+        assert crl[0].revocation_date == revoked_cert0.revocation_date
+        assert len(crl[0].extensions) == 1
+        ext = crl[0].extensions.get_extension_for_class(x509.InvalidityDate)
+        assert ext.critical is False
+        assert ext.value == invalidity_date
+
+    @pytest.mark.supported(
+        only_if=lambda backend: backend.ed448_supported(),
+        skip_message="Requires OpenSSL with Ed448 support"
+    )
+    @pytest.mark.requires_backend_interface(interface=X509Backend)
+    def test_sign_ed448_key(self, backend):
+        private_key = ed448.Ed448PrivateKey.generate()
+        invalidity_date = x509.InvalidityDate(
+            datetime.datetime(2002, 1, 1, 0, 0)
+        )
+        ian = x509.IssuerAlternativeName([
+            x509.UniformResourceIdentifier(u"https://cryptography.io"),
+        ])
+        revoked_cert0 = x509.RevokedCertificateBuilder().serial_number(
+            2
+        ).revocation_date(
+            datetime.datetime(2012, 1, 1, 1, 1)
+        ).add_extension(
+            invalidity_date, False
+        ).build(backend)
+        last_update = datetime.datetime(2002, 1, 1, 12, 1)
+        next_update = datetime.datetime(2030, 1, 1, 12, 1)
+        builder = x509.CertificateRevocationListBuilder().issuer_name(
+            x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, u"cryptography.io CA")
+            ])
+        ).last_update(
+            last_update
+        ).next_update(
+            next_update
+        ).add_revoked_certificate(
+            revoked_cert0
+        ).add_extension(
+            ian, False
+        )
+
+        crl = builder.sign(private_key, None, backend)
+        assert crl.signature_hash_algorithm is None
+        assert crl.signature_algorithm_oid == SignatureAlgorithmOID.ED448
         assert crl.extensions.get_extension_for_class(
             x509.IssuerAlternativeName
         ).value == ian

@@ -176,9 +176,17 @@ epub_theme = 'epub'
 
 # Retry requests in the linkcheck builder so that we're resillient against
 # transient network errors.
-linkcheck_retries = 5
+linkcheck_retries = 10
+
+linkcheck_timeout = 5
 
 linkcheck_ignore = [
-    # Certificate is issued by a Japanese CA that isn't publicly trusted
-    "https://www.cryptrec.go.jp",
+    # Small DH key results in a TLS failure on modern OpenSSL
+    r"https://info.isl.ntt.co.jp/crypt/eng/camellia/",
+    # Inconsistent small DH params they seem incapable of fixing
+    r"https://www.secg.org/sec1-v2.pdf",
+    # 403ing from Travis
+    r"https://devblogs.microsoft.com/oldnewthing/\?p=4223",
+    # Incomplete cert chain
+    r"https://cveform.mitre.org/",
 ]

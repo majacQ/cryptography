@@ -101,6 +101,53 @@ X.509 Reference
     -----END CERTIFICATE-----
     """.strip()
 
+    pem_issuer_public_key = b"""
+    -----BEGIN RSA PUBLIC KEY-----
+    MIICCgKCAgEAyYcqyuT6oQxpvg/VSn2Zc68wZ823D0VAJ2woramFx+2KPWB7B7Ot
+    tVSNRfm0OxJOU3TFAoep54Z2wgOoz0zRmeW6/7gvIuBKp2TW0qZAt3l9sgpE29iw
+    CsoZQlMrLKiDPzCC6Fptk+YPSST9sqwhWDKK1QvOg68DKRxTpEek1hBpC0XRsnuX
+    fvJJQqP39vxzpA0PsicI/wrvWX3vO8z+j9+botPerbeamoeHCsc0xgTLyIygWysB
+    rNskxlzC2U4Kw6mQhGghlLReo1rFsO2/hLTnvLs+Y1lQhnFeOKCx1WVXhzBIyO9B
+    dVVH5Cinb5wBNKvxbevRf4icdWcwtknmgKf69xj7yvFjt/vft74BB1Y5ltLYFmEb
+    0JBxm5MAJfW4YnMQr0AxdjOhjHq4MN7X4ZzwEpJaYJdRmvMsMGN88cyjYPxsaOG+
+    dZ/E9MmTjh0gnTjyD4gmsvR/gtTR/XFJ2wkbnnL1RyxNi6j2UW8C7tpNv0TIuArx
+    3SHGPZN0WsaKTxZPb0L/ob1WBT0mhiq1GzB431cXgbxyh8EdKk+xSptA3V+ca2V2
+    NuXlJIJaOoPMj/qjDW4I/peKGnk9tLknJ0hpRzz11j77pJsV0dGoGKVHIR2oZqT5
+    0ZJJb5DXNbiTnspKLNmBt0YlNiXtlCIPxVUkhL141FuCLc8h6FjD6E0CAwEAAQ==
+    -----END RSA PUBLIC KEY-----
+    """.strip()
+
+    pem_data_to_check = b"""
+    -----BEGIN CERTIFICATE-----
+    MIIErjCCApagAwIBAgIUUrUZsZrrBmRD2hvRuspp+lPsZXcwDQYJKoZIhvcNAQEN
+    BQAwETEPMA0GA1UEAwwGSXNzdWVyMB4XDTE4MTAwODEzNDg1NFoXDTE4MTAxODEz
+    NDg1NFowETEPMA0GA1UEAwwGSXNzdWVyMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
+    MIICCgKCAgEAyYcqyuT6oQxpvg/VSn2Zc68wZ823D0VAJ2woramFx+2KPWB7B7Ot
+    tVSNRfm0OxJOU3TFAoep54Z2wgOoz0zRmeW6/7gvIuBKp2TW0qZAt3l9sgpE29iw
+    CsoZQlMrLKiDPzCC6Fptk+YPSST9sqwhWDKK1QvOg68DKRxTpEek1hBpC0XRsnuX
+    fvJJQqP39vxzpA0PsicI/wrvWX3vO8z+j9+botPerbeamoeHCsc0xgTLyIygWysB
+    rNskxlzC2U4Kw6mQhGghlLReo1rFsO2/hLTnvLs+Y1lQhnFeOKCx1WVXhzBIyO9B
+    dVVH5Cinb5wBNKvxbevRf4icdWcwtknmgKf69xj7yvFjt/vft74BB1Y5ltLYFmEb
+    0JBxm5MAJfW4YnMQr0AxdjOhjHq4MN7X4ZzwEpJaYJdRmvMsMGN88cyjYPxsaOG+
+    dZ/E9MmTjh0gnTjyD4gmsvR/gtTR/XFJ2wkbnnL1RyxNi6j2UW8C7tpNv0TIuArx
+    3SHGPZN0WsaKTxZPb0L/ob1WBT0mhiq1GzB431cXgbxyh8EdKk+xSptA3V+ca2V2
+    NuXlJIJaOoPMj/qjDW4I/peKGnk9tLknJ0hpRzz11j77pJsV0dGoGKVHIR2oZqT5
+    0ZJJb5DXNbiTnspKLNmBt0YlNiXtlCIPxVUkhL141FuCLc8h6FjD6E0CAwEAATAN
+    BgkqhkiG9w0BAQ0FAAOCAgEAVFzNKhEpkH8V8l0NEBAZHNi1e+lcg35fZZ9plqcw
+    Pvk+6M7LW0KD0QWYQWm/dJme4DFsM7lh5u4/m+H4yS7/RP9pads9YwBudchvGR1c
+    S4CCrRAmO8/A0vpQJcEwdS7fdYShBsqMrZ2TvzceVn2dvQbxB6pLkK7KIbDPVJA2
+    HXFFXe2npHmdc80iTz2ShbdVSvyPvk6vc6NFFCg6lSQFuif3vV0+aYqi6DXv4h92
+    9qAdES8ZLDfDulxyajyPbtF35f2Of99CumP5UzG4RQbvtI8gShuK1YFYe2sWJFE0
+    MgSsqGCbl5mcrWxm9YxysRKMZ+Hc4tnkvfmG6GsKtp8u/5pG11XgxXaQl4fZ7JNa
+    QFuD5gEXkEC1mCnhWlnguJgjQlpKadMOORmVTqG9dNQ6GEsha+XWpinm5L9fEZuA
+    F88nNyubKLwEl68N7WWWKQlIl4q8Pe5FEp1pd9rLjOW4gzgYBccIfBK3oMC7uFJg
+    a/9GeOKPiq90UMrCI+CAsIbzuPOaAp3g69JonuDwcs4cu8ui1udxs9q7ox3qSWGZ
+    G1U/hmwvZH9kfIv5BKIzNLy4oxXPDJ7MZIBsxVxaNv8KUQ/JLtpVJa3oYqEx18+V
+    JNr8Pr3y61X8pLmJnaCu+ixshiy2gjxXxDFBVEEt1G9JHrSs3R+yvcHxCrM3+ian
+    Nh4=
+    -----END CERTIFICATE-----
+    """.strip()
+
 Loading Certificates
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -288,10 +335,12 @@ X.509 Certificate Object
 
         The public key associated with the certificate.
 
-        :returns:
-            :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey` or
-            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey` or
-            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`
+        :returns: One of
+            :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey` or
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PublicKey`
 
         .. doctest::
 
@@ -346,7 +395,10 @@ X.509 Certificate Object
 
         Returns the
         :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm` which
-        was used in signing this certificate.
+        was used in signing this certificate.  Can be ``None`` if signature
+        did not use separate hash
+        (:attr:`~cryptography.x509.oid.SignatureAlgorithmOID.ED25519`,
+        :attr:`~cryptography.x509.oid.SignatureAlgorithmOID.ED448`).
 
         .. doctest::
 
@@ -415,6 +467,32 @@ X.509 Certificate Object
         certificate validation is a complex problem that involves much more
         than just signature checks.
 
+        To validate the signature on a certificate you can do the following.
+        Note: This only verifies that the certificate was signed with the
+        private key associated with the public key provided and does not
+        perform any of the other checks needed for secure certificate
+        validation. Additionally, this example will only work for RSA public
+        keys with ``PKCS1v15`` signatures, and so it can't be used for general
+        purpose signature verification.
+
+        .. doctest::
+
+           >>> from cryptography.hazmat.primitives.serialization import load_pem_public_key
+           >>> from cryptography.hazmat.primitives.asymmetric import padding
+           >>> issuer_public_key = load_pem_public_key(pem_issuer_public_key, default_backend())
+           >>> cert_to_check = x509.load_pem_x509_certificate(pem_data_to_check, default_backend())
+           >>> issuer_public_key.verify(
+           ...     cert_to_check.signature,
+           ...     cert_to_check.tbs_certificate_bytes,
+           ...     # Depends on the algorithm used to create the certificate
+           ...     padding.PKCS1v15(),
+           ...     cert_to_check.signature_hash_algorithm,
+           ... )
+
+           An
+           :class:`~cryptography.exceptions.InvalidSignature`
+           exception will be raised if the signature fails to verify.
+
     .. method:: public_bytes(encoding)
 
         .. versionadded:: 1.0
@@ -478,7 +556,10 @@ X.509 CRL (Certificate Revocation List) Object
 
         Returns the
         :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm` which
-        was used in signing this CRL.
+        was used in signing this CRL.  Can be ``None`` if signature
+        did not use separate hash
+        (:attr:`~cryptography.x509.oid.SignatureAlgorithmOID.ED25519`,
+        :attr:`~cryptography.x509.oid.SignatureAlgorithmOID.ED448`).
 
         .. doctest::
 
@@ -510,7 +591,7 @@ X.509 CRL (Certificate Revocation List) Object
         .. doctest::
 
             >>> crl.issuer
-            <Name([<NameAttribute(oid=<ObjectIdentifier(oid=2.5.4.6, name=countryName)>, value='US')>, <NameAttribute(oid=<ObjectIdentifier(oid=2.5.4.3, name=commonName)>, value='cryptography.io')>])>
+            <Name(C=US,CN=cryptography.io)>
 
     .. attribute:: next_update
 
@@ -528,7 +609,7 @@ X.509 CRL (Certificate Revocation List) Object
 
         :type: :class:`datetime.datetime`
 
-        A naïve datetime representing when the this CRL was last updated.
+        A naïve datetime representing when this CRL was last updated.
 
         .. doctest::
 
@@ -654,8 +735,10 @@ X.509 Certificate Builder
 
         :param public_key: The subject's public key. This can be one of
             :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`,
-            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey` or
-            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`
+            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey` or
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PublicKey`.
 
     .. method:: serial_number(serial_number)
 
@@ -708,13 +791,22 @@ X.509 Certificate Builder
 
         :param private_key: The
             :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`,
-            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey` or
-            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`
+            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey` or
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PrivateKey`
             that will be used to sign the certificate.
 
         :param algorithm: The
             :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm` that
-            will be used to generate the signature.
+            will be used to generate the signature. This must be ``None`` if
+            the ``private_key`` is an
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey`
+            or an
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PrivateKey`
+            and an instance of a
+            :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`
+            otherwise.
 
         :param backend: Backend that will be used to build the certificate.
             Must support the
@@ -735,10 +827,12 @@ X.509 CSR (Certificate Signing Request) Object
 
         The public key associated with the request.
 
-        :returns:
-            :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey` or
-            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey` or
-            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`
+        :returns: One of
+            :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey` or
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PublicKey`.
 
         .. doctest::
 
@@ -759,7 +853,10 @@ X.509 CSR (Certificate Signing Request) Object
 
         Returns the
         :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm` which
-        was used in signing this request.
+        was used in signing this request.  Can be ``None`` if signature
+        did not use separate hash
+        (:attr:`~cryptography.x509.oid.SignatureAlgorithmOID.ED25519`,
+        :attr:`~cryptography.x509.oid.SignatureAlgorithmOID.ED448`).
 
         .. doctest::
 
@@ -927,13 +1024,22 @@ X.509 Certificate Revocation List Builder
 
         :param private_key: The
             :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`,
-            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey` or
-            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`
+            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey` or
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PrivateKey`
             that will be used to sign the certificate.
 
         :param algorithm: The
             :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm` that
             will be used to generate the signature.
+            This must be ``None`` if the ``private_key`` is an
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey`
+            or an
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PrivateKey`
+            and an instance of a
+            :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`
+            otherwise.
 
         :param backend: Backend that will be used to build the CRL.
             Must support the
@@ -1099,8 +1205,10 @@ X.509 CSR (Certificate Signing Request) Builder Object
 
         :param private_key: The
             :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`,
-            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey` or
-            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`
+            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey` or
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PrivateKey`
             that will be used to sign the request.  When the request is
             signed by a certificate authority, the private key's associated
             public key will be stored in the resulting certificate.
@@ -1108,6 +1216,13 @@ X.509 CSR (Certificate Signing Request) Builder Object
         :param algorithm: The
             :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`
             that will be used to generate the request signature.
+            This must be ``None`` if the ``private_key`` is an
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey`
+            or an
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PrivateKey`
+            and an instance of a
+            :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`
+            otherwise.
 
         :returns: A new
             :class:`~cryptography.x509.CertificateSigningRequest`.
@@ -1121,7 +1236,7 @@ X.509 CSR (Certificate Signing Request) Builder Object
     get every attribute or you can use :meth:`Name.get_attributes_for_oid` to
     obtain the specific type you want. Names are sometimes represented as a
     slash or comma delimited string (e.g. ``/CN=mydomain.com/O=My Org/C=US`` or
-    ``CN=mydomain.com, O=My Org, C=US``).
+    ``CN=mydomain.com,O=My Org,C=US``).
 
     Technically, a Name is a list of *sets* of attributes, called *Relative
     Distinguished Names* or *RDNs*, although multi-valued RDNs are rarely
@@ -1173,6 +1288,14 @@ X.509 CSR (Certificate Signing Request) Builder Object
 
         :return bytes: The DER encoded name.
 
+    .. method:: rfc4514_string()
+
+        .. versionadded:: 2.5
+
+        :return str: Format the given name as a :rfc:`4514` Distinguished Name
+            string, for example ``CN=mydomain.com,O=My Org,C=US``.
+
+
 .. class:: Version
 
     .. versionadded:: 0.7
@@ -1206,6 +1329,13 @@ X.509 CSR (Certificate Signing Request) Builder Object
 
         The value of the attribute.
 
+    .. method:: rfc4514_string()
+
+        .. versionadded:: 2.5
+
+        :return str: Format the given attribute as a :rfc:`4514` Distinguished
+            Name string.
+
 
 .. class:: RelativeDistinguishedName(attributes)
 
@@ -1222,6 +1352,13 @@ X.509 CSR (Certificate Signing Request) Builder Object
         :returns: A list of :class:`NameAttribute` instances that match the OID
             provided.  The list should contain zero or one values.
 
+    .. method:: rfc4514_string()
+
+        .. versionadded:: 2.5
+
+        :return str: Format the given RDN set as a :rfc:`4514` Distinguished
+            Name string.
+
 
 .. class:: ObjectIdentifier
 
@@ -1235,6 +1372,7 @@ X.509 CSR (Certificate Signing Request) Builder Object
         :type: :class:`str`
 
         The dotted string value of the OID (e.g. ``"2.5.4.3"``)
+
 
 .. _general_name_classes:
 
@@ -1371,7 +1509,7 @@ General Name Classes
 
     .. attribute:: value
 
-        :type: `bytes`
+        :type: bytes
 
 X.509 Extensions
 ~~~~~~~~~~~~~~~~
@@ -1725,7 +1863,7 @@ X.509 Extensions
 
         :type: A list of :class:`GeneralName` instances or None
 
-        The :class:`Name` of the issuer's issuer.
+        The :class:`GeneralName` (one or multiple) of the issuer's issuer.
 
     .. attribute:: authority_cert_serial_number
 
@@ -1757,11 +1895,11 @@ X.509 Extensions
         section 4.2.1.2.
 
         :param public_key: One of
-            :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`
-            ,
-            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`
-            , or
-            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`.
+            :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey` or
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PublicKey`.
 
         .. doctest::
 
@@ -1835,11 +1973,11 @@ X.509 Extensions
         recommendation in :rfc:`5280` section 4.2.1.2.
 
         :param public_key: One of
-            :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`
-            ,
-            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`
-            , or
-            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`.
+            :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`,
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey` or
+            :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PublicKey`.
 
         .. doctest::
 
@@ -1942,6 +2080,23 @@ X.509 Extensions
 
         Returns
         :attr:`~cryptography.x509.oid.ExtensionOID.PRECERT_SIGNED_CERTIFICATE_TIMESTAMPS`.
+
+
+.. class:: PrecertPoison()
+
+    .. versionadded:: 2.4
+
+    This extension indicates that the certificate should not be treated as a
+    certificate for the purposes of validation, but is instead for submission
+    to a certificate transparency log in order to obtain SCTs which will be
+    embedded in a :class:`PrecertificateSignedCertificateTimestamps` extension
+    on the final certificate.
+
+    .. attribute:: oid
+
+        :type: :class:`ObjectIdentifier`
+
+        Returns :attr:`~cryptography.x509.oid.ExtensionOID.PRECERT_POISON`.
 
 
 .. class:: DeltaCRLIndicator(crl_number)
@@ -2229,12 +2384,85 @@ X.509 Extensions
 
         :type: int
 
+.. class:: IssuingDistributionPoint(full_name, relative_name,\
+           only_contains_user_certs, only_contains_ca_certs, only_some_reasons,\
+           indirect_crl, only_contains_attribute_certs)
+
+    .. versionadded:: 2.5
+
+    Issuing distribution point is a CRL extension that identifies the CRL
+    distribution point and scope for a particular CRL. It indicates whether
+    the CRL covers revocation for end entity certificates only, CA certificates
+    only, attribute certificates only, or a limited set of reason codes. For
+    specific details on the way this extension should be processed see
+    :rfc:`5280`.
+
+    .. attribute:: oid
+
+        :type: :class:`ObjectIdentifier`
+
+        Returns
+        :attr:`~cryptography.x509.oid.ExtensionOID.ISSUING_DISTRIBUTION_POINT`.
+
+    .. attribute:: only_contains_user_certs
+
+        :type: bool
+
+        Set to ``True`` if the CRL this extension is embedded within only
+        contains information about user certificates.
+
+    .. attribute:: only_contains_ca_certs
+
+        :type: bool
+
+        Set to ``True`` if the CRL this extension is embedded within only
+        contains information about CA certificates.
+
+    .. attribute:: indirect_crl
+
+        :type: bool
+
+        Set to ``True`` if the CRL this extension is embedded within includes
+        certificates issued by one or more authorities other than the CRL
+        issuer.
+
+    .. attribute:: only_contains_attribute_certs
+
+        :type: bool
+
+        Set to ``True`` if the CRL this extension is embedded within only
+        contains information about attribute certificates.
+
+    .. attribute:: only_some_reasons
+
+        :type: frozenset of :class:`ReasonFlags` or None
+
+        The reasons for which the issuing distribution point is valid. None
+        indicates that it is valid for all reasons.
+
+    .. attribute:: full_name
+
+        :type: list of :class:`GeneralName` instances or None
+
+        This field describes methods to retrieve the CRL. At most one of
+        ``full_name`` or ``relative_name`` will be non-None.
+
+    .. attribute:: relative_name
+
+        :type: :class:`RelativeDistinguishedName` or None
+
+        This field describes methods to retrieve the CRL relative to the CRL
+        issuer. At most one of ``full_name`` or ``relative_name`` will be
+        non-None.
+
 .. class:: UnrecognizedExtension
 
     .. versionadded:: 1.2
 
     A generic extension class used to hold the raw value of extensions that
-    ``cryptography`` does not know how to parse.
+    ``cryptography`` does not know how to parse. This can also be used when
+    creating new certificates, CRLs, or OCSP requests and responses to encode
+    extensions that ``cryptography`` does not know how to generate.
 
     .. attribute:: oid
 
@@ -2244,7 +2472,7 @@ X.509 Extensions
 
     .. attribute:: value
 
-        :type: byte
+        :type: bytes
 
         Returns the DER encoded bytes payload of the extension.
 
@@ -2256,6 +2484,18 @@ X.509 Extensions
     :class:`PolicyInformation` instances.
 
     :param list policies: A list of :class:`PolicyInformation` instances.
+
+    As an example of how ``CertificatePolicies`` might be used, if you wanted
+    to check if a certificated contained the CAB Forum's "domain-validated"
+    policy, you might write code like:
+
+    .. code-block:: python
+
+        def contains_domain_validated(policies):
+            return any(
+                policy.oid.dotted_string == "2.23.140.1.2.1"
+                for policy in policies
+            )
 
     .. attribute:: oid
 
@@ -2415,6 +2655,30 @@ These extensions are only valid within a :class:`RevokedCertificate` object.
 
         :type: :class:`datetime.datetime`
 
+OCSP Extensions
+~~~~~~~~~~~~~~~
+
+.. class:: OCSPNonce(nonce)
+
+    .. versionadded:: 2.4
+
+    OCSP nonce is an extension that is only valid inside
+    :class:`~cryptography.x509.ocsp.OCSPRequest` and
+    :class:`~cryptography.x509.ocsp.OCSPResponse` objects. The nonce
+    cryptographically binds a request and a response to prevent replay attacks.
+    In practice nonces are rarely used in OCSP due to the desire to precompute
+    OCSP responses at large scale.
+
+    .. attribute:: oid
+
+        :type: :class:`ObjectIdentifier`
+
+        Returns
+        :attr:`~cryptography.x509.oid.OCSPExtensionOID.NONCE`.
+
+    .. attribute:: nonce
+
+        :type: bytes
 
 Object Identifiers
 ~~~~~~~~~~~~~~~~~~
@@ -2585,7 +2849,7 @@ instances. The following common OIDs are available as constants.
 
         Corresponds to the dotted string ``"1.2.840.113549.1.1.10"``. This is
         signed by an RSA key using the Probabilistic Signature Scheme (PSS)
-        padding from RFC 4055. The hash function and padding are defined by
+        padding from :rfc:`4055`. The hash function and padding are defined by
         signature algorithm parameters.
 
     .. attribute:: ECDSA_WITH_SHA1
@@ -2627,6 +2891,20 @@ instances. The following common OIDs are available as constants.
 
         Corresponds to the dotted string ``"2.16.840.1.101.3.4.3.2"``. This is
         a SHA256 digest signed by a DSA key.
+
+    .. attribute:: ED25519
+
+        .. versionadded:: 2.8
+
+        Corresponds to the dotted string ``"1.3.101.112"``. This is a signature
+        using an ed25519 key.
+
+    .. attribute:: ED448
+
+        .. versionadded:: 2.8
+
+        Corresponds to the dotted string ``"1.3.101.113"``. This is a signature
+        using an ed448 key.
 
 
 .. class:: ExtendedKeyUsageOID
@@ -2670,7 +2948,12 @@ instances. The following common OIDs are available as constants.
         .. versionadded:: 2.0
 
         Corresponds to the dotted string ``"2.5.29.37.0"``. This is used to
-        denote that a certificate may be used for _any_ purposes.
+        denote that a certificate may be used for _any_ purposes. However,
+        :rfc:`5280` additionally notes that applications that require the
+        presence of a particular purpose _MAY_ reject certificates that include
+        the ``anyExtendedKeyUsage`` OID but not the particular OID expected for
+        the application. Therefore, the presence of this OID does not mean a
+        given application will accept the certificate for all purposes.
 
 
 .. class:: AuthorityInformationAccessOID
@@ -2804,6 +3087,12 @@ instances. The following common OIDs are available as constants.
 
         Corresponds to the dotted string ``"1.3.6.1.4.1.11129.2.4.2"``.
 
+    .. attribute:: PRECERT_POISON
+
+        .. versionadded:: 2.4
+
+        Corresponds to the dotted string ``"1.3.6.1.4.1.11129.2.4.3"``.
+
     .. attribute:: POLICY_CONSTRAINTS
 
         Corresponds to the dotted string ``"2.5.29.36"``. The identifier for the
@@ -2813,6 +3102,12 @@ instances. The following common OIDs are available as constants.
 
         Corresponds to the dotted string ``"2.5.29.46"``. The identifier for the
         :class:`~cryptography.x509.FreshestCRL` extension type.
+
+    .. attribute:: ISSUING_DISTRIBUTION_POINT
+
+        .. versionadded:: 2.4
+
+        Corresponds to the dotted string ``"2.5.29.28"``.
 
 
 .. class:: CRLEntryExtensionOID
@@ -2830,6 +3125,15 @@ instances. The following common OIDs are available as constants.
     .. attribute:: INVALIDITY_DATE
 
         Corresponds to the dotted string ``"2.5.29.24"``.
+
+
+.. class:: OCSPExtensionOID
+
+    .. versionadded:: 2.4
+
+    .. attribute:: NONCE
+
+        Corresponds to the dotted string ``"1.3.6.1.5.5.7.48.1.2"``.
 
 Helper Functions
 ~~~~~~~~~~~~~~~~

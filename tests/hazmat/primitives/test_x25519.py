@@ -10,7 +10,7 @@ import os
 import pytest
 
 from cryptography.exceptions import _Reasons
-from cryptography.hazmat.backends.interfaces import DHBackend
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.x25519 import (
     X25519PrivateKey, X25519PublicKey
 )
@@ -24,10 +24,12 @@ from ...utils import (
     only_if=lambda backend: not backend.x25519_supported(),
     skip_message="Requires OpenSSL without X25519 support"
 )
-@pytest.mark.requires_backend_interface(interface=DHBackend)
 def test_x25519_unsupported(backend):
     with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_EXCHANGE_ALGORITHM):
         X25519PublicKey.from_public_bytes(b"0" * 32)
+
+    with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_EXCHANGE_ALGORITHM):
+        X25519PrivateKey.from_private_bytes(b"0" * 32)
 
     with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_EXCHANGE_ALGORITHM):
         X25519PrivateKey.generate()
@@ -37,7 +39,6 @@ def test_x25519_unsupported(backend):
     only_if=lambda backend: backend.x25519_supported(),
     skip_message="Requires OpenSSL with X25519 support"
 )
-@pytest.mark.requires_backend_interface(interface=DHBackend)
 class TestX25519Exchange(object):
     @pytest.mark.parametrize(
         "vector",
@@ -50,7 +51,7 @@ class TestX25519Exchange(object):
         private = binascii.unhexlify(vector["input_scalar"])
         public = binascii.unhexlify(vector["input_u"])
         shared_key = binascii.unhexlify(vector["output_u"])
-        private_key = X25519PrivateKey._from_private_bytes(private)
+        private_key = X25519PrivateKey.from_private_bytes(private)
         public_key = X25519PublicKey.from_public_bytes(public)
         computed_shared_key = private_key.exchange(public_key)
         assert computed_shared_key == shared_key
@@ -64,11 +65,11 @@ class TestX25519Exchange(object):
             b"684cf59ba83309552800ef566f2f4d3c1c3887c49360e3875f2eb94d9953"
             b"2c51"
         )
-        private_key = X25519PrivateKey._from_private_bytes(private)
+        private_key = X25519PrivateKey.from_private_bytes(private)
         public_key = X25519PublicKey.from_public_bytes(public)
         for _ in range(1000):
             computed_shared_key = private_key.exchange(public_key)
-            private_key = X25519PrivateKey._from_private_bytes(
+            private_key = X25519PrivateKey.from_private_bytes(
                 computed_shared_key
             )
             public_key = X25519PublicKey.from_public_bytes(old_private)
@@ -86,12 +87,19 @@ class TestX25519Exchange(object):
         private = binascii.unhexlify(
             "78f1e8edf14481b389448dac8f59c70b038e7cf92ef2c7eff57a72466e115296"
         )
-        private_key = X25519PrivateKey._from_private_bytes(
+        private_key = X25519PrivateKey.from_private_bytes(
             private
         )
         public_key = X25519PublicKey.from_public_bytes(public)
         with pytest.raises(ValueError):
             private_key.exchange(public_key)
+
+    def test_public_bytes_bad_args(self, backend):
+        key = X25519PrivateKey.generate().public_key()
+        with pytest.raises(ValueError):
+            key.public_bytes(None, serialization.PublicFormat.Raw)
+        with pytest.raises(TypeError):
+            key.public_bytes(serialization.Encoding.Raw)
 
     # These vectors are also from RFC 7748
     # https://tools.ietf.org/html/rfc7748#section-6.1
@@ -120,11 +128,20 @@ class TestX25519Exchange(object):
             )
         ]
     )
-    def test_public_bytes(self, private_bytes, public_bytes, backend):
-        private_key = X25519PrivateKey._from_private_bytes(private_bytes)
-        assert private_key.public_key().public_bytes() == public_bytes
+    def test_pub_priv_bytes_raw(self, private_bytes, public_bytes, backend):
+        private_key = X25519PrivateKey.from_private_bytes(private_bytes)
+        assert private_key.private_bytes(
+            serialization.Encoding.Raw,
+            serialization.PrivateFormat.Raw,
+            serialization.NoEncryption()
+        ) == private_bytes
+        assert private_key.public_key().public_bytes(
+            serialization.Encoding.Raw, serialization.PublicFormat.Raw
+        ) == public_bytes
         public_key = X25519PublicKey.from_public_bytes(public_bytes)
-        assert public_key.public_bytes() == public_bytes
+        assert public_key.public_bytes(
+            serialization.Encoding.Raw, serialization.PublicFormat.Raw
+        ) == public_bytes
 
     def test_generate(self, backend):
         key = X25519PrivateKey.generate()
@@ -135,3 +152,109 @@ class TestX25519Exchange(object):
         key = X25519PrivateKey.generate()
         with pytest.raises(TypeError):
             key.exchange(object())
+
+    def test_invalid_length_from_public_bytes(self, backend):
+        with pytest.raises(ValueError):
+            X25519PublicKey.from_public_bytes(b"a" * 31)
+
+        with pytest.raises(ValueError):
+            X25519PublicKey.from_public_bytes(b"a" * 33)
+
+    def test_invalid_length_from_private_bytes(self, backend):
+        with pytest.raises(ValueError):
+            X25519PrivateKey.from_private_bytes(b"a" * 31)
+
+        with pytest.raises(ValueError):
+            X25519PrivateKey.from_private_bytes(b"a" * 33)
+
+    def test_invalid_private_bytes(self, backend):
+        key = X25519PrivateKey.generate()
+        with pytest.raises(ValueError):
+            key.private_bytes(
+                serialization.Encoding.Raw,
+                serialization.PrivateFormat.Raw,
+                None
+            )
+
+        with pytest.raises(ValueError):
+            key.private_bytes(
+                serialization.Encoding.Raw,
+                serialization.PrivateFormat.PKCS8,
+                None
+            )
+
+        with pytest.raises(ValueError):
+            key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.Raw,
+                serialization.NoEncryption()
+            )
+
+    def test_invalid_public_bytes(self, backend):
+        key = X25519PrivateKey.generate().public_key()
+        with pytest.raises(ValueError):
+            key.public_bytes(
+                serialization.Encoding.Raw,
+                serialization.PublicFormat.SubjectPublicKeyInfo
+            )
+
+        with pytest.raises(ValueError):
+            key.public_bytes(
+                serialization.Encoding.PEM,
+                serialization.PublicFormat.PKCS1
+            )
+
+        with pytest.raises(ValueError):
+            key.public_bytes(
+                serialization.Encoding.PEM,
+                serialization.PublicFormat.Raw
+            )
+
+    @pytest.mark.parametrize(
+        ("encoding", "fmt", "encryption", "passwd", "load_func"),
+        [
+            (
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.BestAvailableEncryption(b"password"),
+                b"password",
+                serialization.load_pem_private_key
+            ),
+            (
+                serialization.Encoding.DER,
+                serialization.PrivateFormat.PKCS8,
+                serialization.BestAvailableEncryption(b"password"),
+                b"password",
+                serialization.load_der_private_key
+            ),
+            (
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+                None,
+                serialization.load_pem_private_key
+            ),
+            (
+                serialization.Encoding.DER,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+                None,
+                serialization.load_der_private_key
+            ),
+        ]
+    )
+    def test_round_trip_private_serialization(self, encoding, fmt, encryption,
+                                              passwd, load_func, backend):
+        key = X25519PrivateKey.generate()
+        serialized = key.private_bytes(encoding, fmt, encryption)
+        loaded_key = load_func(serialized, passwd, backend)
+        assert isinstance(loaded_key, X25519PrivateKey)
+
+    def test_buffer_protocol(self, backend):
+        private_bytes = bytearray(os.urandom(32))
+        key = X25519PrivateKey.from_private_bytes(private_bytes)
+        assert key.private_bytes(
+            serialization.Encoding.Raw,
+            serialization.PrivateFormat.Raw,
+            serialization.NoEncryption()
+        ) == private_bytes

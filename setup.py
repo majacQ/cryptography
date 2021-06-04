@@ -8,7 +8,6 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import platform
-import subprocess
 import sys
 from distutils.command.build import build
 
@@ -17,7 +16,6 @@ import pkg_resources
 import setuptools
 from setuptools import find_packages, setup
 from setuptools.command.install import install
-from setuptools.command.test import test
 
 
 if (
@@ -41,52 +39,15 @@ with open(os.path.join(src_dir, "cryptography", "__about__.py")) as f:
     exec(f.read(), about)
 
 
-VECTORS_DEPENDENCY = "cryptography_vectors=={0}".format(about['__version__'])
-
-setup_requirements = ["cffi>=1.7,!=1.11.3"]
+# `setup_requirements` must be kept in sync with `pyproject.toml`
+setup_requirements = ["cffi>=1.8,!=1.11.3"]
 
 if platform.python_implementation() == "PyPy":
-    if sys.pypy_version_info < (5, 3):
+    if sys.pypy_version_info < (5, 4):
         raise RuntimeError(
-            "cryptography is not compatible with PyPy < 5.3. Please upgrade "
+            "cryptography is not compatible with PyPy < 5.4. Please upgrade "
             "PyPy to use this library."
         )
-
-test_requirements = [
-    "pytest>=3.2.1,!=3.3.0",
-    "pretend",
-    "iso8601",
-    "pytz",
-    "hypothesis>=1.11.4",
-]
-
-
-# If there's no vectors locally that probably means we are in a tarball and
-# need to go and get the matching vectors package from PyPi
-if not os.path.exists(os.path.join(base_dir, "vectors/setup.py")):
-    test_requirements.append(VECTORS_DEPENDENCY)
-
-
-class PyTest(test):
-    def finalize_options(self):
-        test.finalize_options(self)
-        self.test_args = []
-        self.test_suite = True
-
-        # This means there's a vectors/ folder with the package in here.
-        # cd into it, install the vectors package and then refresh sys.path
-        if VECTORS_DEPENDENCY not in test_requirements:
-            subprocess.check_call(
-                [sys.executable, "setup.py", "install"], cwd="vectors"
-            )
-            pkg_resources.get_distribution("cryptography_vectors").activate()
-
-    def run_tests(self):
-        # Import here because in module scope the eggs are not loaded.
-        import pytest
-        test_args = [os.path.join(base_dir, "tests")]
-        errno = pytest.main(test_args)
-        sys.exit(errno)
 
 
 def keywords_with_side_effects(argv):
@@ -182,7 +143,6 @@ def keywords_with_side_effects(argv):
             "cmdclass": {
                 "build": DummyBuild,
                 "install": DummyInstall,
-                "test": DummyPyTest,
             }
         }
     else:
@@ -194,9 +154,6 @@ def keywords_with_side_effects(argv):
 
         return {
             "setup_requires": setup_requirements,
-            "cmdclass": {
-                "test": PyTest,
-            },
             "cffi_modules": cffi_modules
         }
 
@@ -228,17 +185,6 @@ class DummyInstall(install):
         raise RuntimeError(setup_requires_error)
 
 
-class DummyPyTest(test):
-    """
-    This class makes it very obvious when ``keywords_with_side_effects()`` has
-    incorrectly interpreted the command line arguments to ``setup.py test`` as
-    one of the 'side effect free' commands or options.
-    """
-
-    def run_tests(self):
-        raise RuntimeError(setup_requires_error)
-
-
 with open(os.path.join(base_dir, "README.rst")) as f:
     long_description = f.read()
 
@@ -249,6 +195,7 @@ setup(
 
     description=about["__summary__"],
     long_description=long_description,
+    long_description_content_type="text/x-rst",
     license=about["__license__"],
     url=about["__uri__"],
 
@@ -270,10 +217,10 @@ setup(
         "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: PyPy",
         "Topic :: Security :: Cryptography",
@@ -283,26 +230,29 @@ setup(
     packages=find_packages(where="src", exclude=["_cffi_src", "_cffi_src.*"]),
     include_package_data=True,
 
-    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
+    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*',
 
     install_requires=[
-        "idna >= 2.1",
-        "asn1crypto >= 0.21.0",
         "six >= 1.4.1",
     ] + setup_requirements,
-    tests_require=test_requirements,
     extras_require={
         ":python_version < '3'": ["enum34", "ipaddress"],
 
-        "test": test_requirements,
+        "test": [
+            "pytest>=3.6.0,!=3.9.0,!=3.9.1,!=3.9.2",
+            "pretend",
+            "iso8601",
+            "pytz",
+            "hypothesis>=1.11.4,!=3.79.2",
+        ],
         "docs": [
-            "sphinx >= 1.6.5",
+            "sphinx >= 1.6.5,!=1.8.0",
             "sphinx_rtd_theme",
         ],
         "docstest": [
             "doc8",
             "pyenchant >= 1.6.11",
-            "readme_renderer >= 16.0",
+            "twine >= 1.12.0",
             "sphinxcontrib-spelling >= 4.0.1",
         ],
         "pep8test": [
@@ -310,6 +260,12 @@ setup(
             "flake8-import-order",
             "pep8-naming",
         ],
+        # This extra is for the U-label support that was deprecated in
+        # cryptography 2.1. If you need this deprecated path install with
+        # pip install cryptography[idna]
+        "idna": [
+            "idna >= 2.1",
+        ]
     },
 
     # for cffi

@@ -14,7 +14,7 @@ from .utils import (
 
 
 def pytest_report_header(config):
-    return "OpenSSL: {0}".format(openssl_backend.openssl_version_text())
+    return "OpenSSL: {}".format(openssl_backend.openssl_version_text())
 
 
 def pytest_addoption(parser):
@@ -27,7 +27,8 @@ def pytest_generate_tests(metafunc):
         skip_if_wycheproof_none(wycheproof)
 
         testcases = []
-        for path in metafunc.function.wycheproof_tests.args:
+        marker = metafunc.definition.get_closest_marker("wycheproof_tests")
+        for path in marker.args:
             testcases.extend(load_wycheproof_tests(wycheproof, path))
         metafunc.parametrize("wycheproof", testcases)
 
@@ -36,13 +37,13 @@ def pytest_generate_tests(metafunc):
 def backend(request):
     required_interfaces = [
         mark.kwargs["interface"]
-        for mark in request.node.get_marker("requires_backend_interface")
+        for mark in request.node.iter_markers("requires_backend_interface")
     ]
     if not all(
         isinstance(openssl_backend, iface) for iface in required_interfaces
     ):
         pytest.skip(
-            "OpenSSL doesn't implement required interfaces: {0}".format(
+            "OpenSSL doesn't implement required interfaces: {}".format(
                 required_interfaces
             )
         )

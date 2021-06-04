@@ -1,6 +1,7 @@
 accessor
 affine
 Authenticator
+authenticator
 backend
 Backends
 backends
@@ -10,6 +11,7 @@ boolean
 Botan
 Brainpool
 Capitan
+changelog
 Changelog
 ciphertext
 codebook
@@ -21,6 +23,7 @@ crypto
 cryptographic
 cryptographically
 Debian
+deallocated
 decrypt
 decrypts
 Decrypts
@@ -40,6 +43,7 @@ Docstrings
 El
 Encodings
 endian
+extendable
 fallback
 Fernet
 fernet
@@ -51,6 +55,7 @@ hostname
 idna
 indistinguishability
 initialisms
+interoperability
 interoperable
 introspectability
 invariants
@@ -74,7 +79,9 @@ Parallelization
 personalization
 pickleable
 plaintext
+Poly
 pre
+precompute
 preprocessor
 preprocessors
 presentational
@@ -93,6 +100,7 @@ syscall
 Tanja
 testability
 timestamp
+timestamps
 tunable
 Ubuntu
 unencrypted
@@ -105,5 +113,6 @@ Verisign
 versioning
 wildcard
 WoSign
+Wycheproof
 Xcode
 XEX

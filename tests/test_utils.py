@@ -32,7 +32,8 @@ def test_check_backend_support_skip():
     supported = pretend.stub(
         kwargs={"only_if": lambda backend: False, "skip_message": "Nope"}
     )
-    item = pretend.stub(keywords={"supported": [supported]})
+    node = pretend.stub(iter_markers=lambda x: [supported])
+    item = pretend.stub(node=node)
     with pytest.raises(pytest.skip.Exception) as exc_info:
         check_backend_support(True, item)
     assert exc_info.value.args[0] == "Nope (True)"
@@ -42,7 +43,8 @@ def test_check_backend_support_no_skip():
     supported = pretend.stub(
         kwargs={"only_if": lambda backend: True, "skip_message": "Nope"}
     )
-    item = pretend.stub(keywords={"supported": [supported]})
+    node = pretend.stub(iter_markers=lambda x: [supported])
+    item = pretend.stub(node=node)
     assert check_backend_support(None, item) is None
 
 
@@ -225,7 +227,7 @@ def test_load_ed25519_vectors():
 
 def test_load_cryptrec_vectors():
     vector_data = textwrap.dedent("""
-    # Vectors taken from http://info.isl.ntt.co.jp/crypt/eng/camellia/
+    # Vectors taken from https://info.isl.ntt.co.jp/crypt/eng/camellia/
     # Download is t_camelia.txt
 
     # Camellia with 128-bit key
@@ -265,7 +267,7 @@ def test_load_cryptrec_vectors():
 
 def test_load_cryptrec_vectors_invalid():
     vector_data = textwrap.dedent("""
-    # Vectors taken from http://info.isl.ntt.co.jp/crypt/eng/camellia/
+    # Vectors taken from https://info.isl.ntt.co.jp/crypt/eng/camellia/
     # Download is t_camelia.txt
 
     # Camellia with 128-bit key
@@ -280,7 +282,7 @@ def test_load_cryptrec_vectors_invalid():
 def test_load_hash_vectors():
     vector_data = textwrap.dedent("""
 
-        # http://tools.ietf.org/html/rfc1321
+        # https://tools.ietf.org/html/rfc1321
         [irrelevant]
 
         Len = 0
@@ -325,7 +327,7 @@ MD = 750c783e6ab0b503eaa86e310a5db738
 
 def test_load_hash_vectors_bad_data():
     vector_data = textwrap.dedent("""
-        # http://tools.ietf.org/html/rfc1321
+        # https://tools.ietf.org/html/rfc1321
 
         Len = 0
         Msg = 00
