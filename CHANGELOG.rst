@@ -1,6 +1,7 @@
 Changelog
 =========
 
+  <<<<<<< 2.3.x
   <<<<<<< 1.8.x
   =======
   <<<<<<< 2.4.x
@@ -512,7 +513,7 @@ Changelog
 * Fixed a compilation bug affecting OpenSSL 1.1.0f.
 * Updated Windows and macOS wheels to be compiled against OpenSSL 1.1.0f.
 
- v<<<<<<< 1.8.x
+  <<<<<<< 1.8.x
   =======
 
 .. _v1-8-1:
@@ -561,23 +562,31 @@ Changelog
 
 .. _v1-7-2:
 
+  =======
+  >>>>>>> 1.7.x
 1.7.2 - 2017-01-27
 ~~~~~~~~~~~~~~~~~~
 
 * Updated Windows and macOS wheels to be compiled against OpenSSL 1.0.2k.
 
+  <<<<<<< 2.3.x
 
 .. _v1-7-1:
 
+  =======
+  >>>>>>> 1.7.x
 1.7.1 - 2016-12-13
 ~~~~~~~~~~~~~~~~~~
 
 * Fixed a regression in ``int_from_bytes`` where it failed to accept
   ``bytearray``.
 
+  <<<<<<< 2.3.x
 
 .. _v1-7:
 
+  =======
+  >>>>>>> 1.7.x
 1.7 - 2016-12-12
 ~~~~~~~~~~~~~~~~
 

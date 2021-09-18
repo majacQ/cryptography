@@ -66,7 +66,12 @@ else:
         assert byteorder == 'big'
         assert not signed
 
+  <<<<<<< 2.3.x
         return int(binascii.hexlify(data), 16)
+  =======
+        # call bytes() on data to allow the use of bytearrays
+        return int(bytes(data).encode('hex'), 16)
+  >>>>>>> 1.7.x
 
 
 if hasattr(int, "to_bytes"):

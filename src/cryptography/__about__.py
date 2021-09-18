@@ -14,6 +14,7 @@ __summary__ = ("cryptography is a package which provides cryptographic recipes"
                " and primitives to Python developers.")
 __uri__ = "https://github.com/pyca/cryptography"
 
+  <<<<<<< 2.3.x
   <<<<<<< 1.8.x
 __version__ = "1.8.2"
   =======
@@ -27,6 +28,9 @@ __version__ = "2.4.2"
 __version__ = "2.3.1"
   >>>>>>> 2.3.x
   >>>>>>> 2.3.x
+  =======
+__version__ = "1.7.2"
+  >>>>>>> 1.7.x
 
 __author__ = "The cryptography developers"
 __email__ = "cryptography-dev@python.org"

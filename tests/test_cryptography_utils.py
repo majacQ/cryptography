@@ -4,13 +4,17 @@
 
 from __future__ import absolute_import, division, print_function
 
+  <<<<<<< 2.3.x
 import pytest
 
+  =======
+  >>>>>>> 1.7.x
 from cryptography import utils
 
 
 def test_int_from_bytes_bytearray():
     assert utils.int_from_bytes(bytearray(b"\x02\x10"), "big") == 528
+  <<<<<<< 2.3.x
     with pytest.raises(TypeError):
         utils.int_from_bytes(["list", "is", "not", "bytes"], "big")
 
@@ -63,3 +67,5 @@ class TestCachedProperty(object):
 def test_bit_length():
     assert utils.bit_length(1) == 1
     assert utils.bit_length(11) == 4
+  =======
+  >>>>>>> 1.7.x
