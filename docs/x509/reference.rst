@@ -168,8 +168,7 @@ Loading Certificates
     .. doctest::
 
         >>> from cryptography import x509
-        >>> from cryptography.hazmat.backends import default_backend
-        >>> cert = x509.load_pem_x509_certificate(pem_data, default_backend())
+        >>> cert = x509.load_pem_x509_certificate(pem_data)
         >>> cert.serial_number
         2
 
@@ -212,9 +211,8 @@ Loading Certificate Revocation Lists
     .. doctest::
 
         >>> from cryptography import x509
-        >>> from cryptography.hazmat.backends import default_backend
         >>> from cryptography.hazmat.primitives import hashes
-        >>> crl = x509.load_pem_x509_crl(pem_crl_data, default_backend())
+        >>> crl = x509.load_pem_x509_crl(pem_crl_data)
         >>> isinstance(crl.signature_hash_algorithm, hashes.SHA256)
         True
 
@@ -258,9 +256,8 @@ Loading Certificate Signing Requests
     .. doctest::
 
         >>> from cryptography import x509
-        >>> from cryptography.hazmat.backends import default_backend
         >>> from cryptography.hazmat.primitives import hashes
-        >>> csr = x509.load_pem_x509_csr(pem_req_data, default_backend())
+        >>> csr = x509.load_pem_x509_csr(pem_req_data)
         >>> isinstance(csr.signature_hash_algorithm, hashes.SHA256)
         True
 
@@ -474,8 +471,8 @@ X.509 Certificate Object
 
            >>> from cryptography.hazmat.primitives.serialization import load_pem_public_key
            >>> from cryptography.hazmat.primitives.asymmetric import padding
-           >>> issuer_public_key = load_pem_public_key(pem_issuer_public_key, default_backend())
-           >>> cert_to_check = x509.load_pem_x509_certificate(pem_data_to_check, default_backend())
+           >>> issuer_public_key = load_pem_public_key(pem_issuer_public_key)
+           >>> cert_to_check = x509.load_pem_x509_certificate(pem_data_to_check)
            >>> issuer_public_key.verify(
            ...     cert_to_check.signature,
            ...     cert_to_check.tbs_certificate_bytes,
@@ -671,7 +668,6 @@ X.509 Certificate Builder
     .. doctest::
 
         >>> from cryptography import x509
-        >>> from cryptography.hazmat.backends import default_backend
         >>> from cryptography.hazmat.primitives import hashes
         >>> from cryptography.hazmat.primitives.asymmetric import rsa
         >>> from cryptography.x509.oid import NameOID
@@ -680,7 +676,6 @@ X.509 Certificate Builder
         >>> private_key = rsa.generate_private_key(
         ...     public_exponent=65537,
         ...     key_size=2048,
-        ...     backend=default_backend()
         ... )
         >>> public_key = private_key.public_key()
         >>> builder = x509.CertificateBuilder()
@@ -705,7 +700,6 @@ X.509 Certificate Builder
         ... )
         >>> certificate = builder.sign(
         ...     private_key=private_key, algorithm=hashes.SHA256(),
-        ...     backend=default_backend()
         ... )
         >>> isinstance(certificate, x509.Certificate)
         True
@@ -770,11 +764,11 @@ X.509 Certificate Builder
             expiration time for the certificate.  The certificate may not be
             trusted clients if it is used after this time.
 
-    .. method:: add_extension(extension, critical)
+    .. method:: add_extension(extval, critical)
 
         Adds an X.509 extension to the certificate.
 
-        :param extension: An extension conforming to the
+        :param extval: An extension conforming to the
             :class:`~cryptography.x509.ExtensionType` interface.
 
         :param critical: Set to ``True`` if the extension must be understood and
@@ -945,7 +939,6 @@ X.509 Certificate Revocation List Builder
     .. doctest::
 
         >>> from cryptography import x509
-        >>> from cryptography.hazmat.backends import default_backend
         >>> from cryptography.hazmat.primitives import hashes
         >>> from cryptography.hazmat.primitives.asymmetric import rsa
         >>> from cryptography.x509.oid import NameOID
@@ -954,7 +947,6 @@ X.509 Certificate Revocation List Builder
         >>> private_key = rsa.generate_private_key(
         ...     public_exponent=65537,
         ...     key_size=2048,
-        ...     backend=default_backend()
         ... )
         >>> builder = x509.CertificateRevocationListBuilder()
         >>> builder = builder.issuer_name(x509.Name([
@@ -966,11 +958,10 @@ X.509 Certificate Revocation List Builder
         ...     333
         ... ).revocation_date(
         ...     datetime.datetime.today()
-        ... ).build(default_backend())
+        ... ).build()
         >>> builder = builder.add_revoked_certificate(revoked_cert)
         >>> crl = builder.sign(
         ...     private_key=private_key, algorithm=hashes.SHA256(),
-        ...     backend=default_backend()
         ... )
         >>> len(crl)
         1
@@ -1002,11 +993,11 @@ X.509 Certificate Revocation List Builder
         :param time: The :class:`datetime.datetime` object (in UTC) that marks
             the next update time for this CRL.
 
-    .. method:: add_extension(extension, critical)
+    .. method:: add_extension(extval, critical)
 
         Adds an X.509 extension to this CRL.
 
-        :param extension: An extension with the
+        :param extval: An extension with the
             :class:`~cryptography.x509.ExtensionType` interface.
 
         :param critical: Set to ``True`` if the extension must be understood and
@@ -1107,12 +1098,11 @@ X.509 Revoked Certificate Builder
     .. doctest::
 
         >>> from cryptography import x509
-        >>> from cryptography.hazmat.backends import default_backend
         >>> import datetime
         >>> builder = x509.RevokedCertificateBuilder()
         >>> builder = builder.revocation_date(datetime.datetime.today())
         >>> builder = builder.serial_number(3333)
-        >>> revoked_certificate = builder.build(default_backend())
+        >>> revoked_certificate = builder.build()
         >>> isinstance(revoked_certificate, x509.RevokedCertificate)
         True
 
@@ -1130,11 +1120,11 @@ X.509 Revoked Certificate Builder
         :param time: The :class:`datetime.datetime` object (in UTC) that marks the
             revocation time for the certificate.
 
-    .. method:: add_extension(extension, critical)
+    .. method:: add_extension(extval, critical)
 
         Adds an X.509 extension to this revoked certificate.
 
-        :param extension: An instance of one of the
+        :param extval: An instance of one of the
             :ref:`CRL entry extensions <crl_entry_extensions>`.
 
         :param critical: Set to ``True`` if the extension must be understood and
@@ -1161,14 +1151,12 @@ X.509 CSR (Certificate Signing Request) Builder Object
     .. doctest::
 
         >>> from cryptography import x509
-        >>> from cryptography.hazmat.backends import default_backend
         >>> from cryptography.hazmat.primitives import hashes
         >>> from cryptography.hazmat.primitives.asymmetric import rsa
         >>> from cryptography.x509.oid import AttributeOID, NameOID
         >>> private_key = rsa.generate_private_key(
         ...     public_exponent=65537,
         ...     key_size=2048,
-        ...     backend=default_backend()
         ... )
         >>> builder = x509.CertificateSigningRequestBuilder()
         >>> builder = builder.subject_name(x509.Name([
@@ -1181,7 +1169,7 @@ X.509 CSR (Certificate Signing Request) Builder Object
         ...     AttributeOID.CHALLENGE_PASSWORD, b"changeit"
         ... )
         >>> request = builder.sign(
-        ...     private_key, hashes.SHA256(), default_backend()
+        ...     private_key, hashes.SHA256()
         ... )
         >>> isinstance(request, x509.CertificateSigningRequest)
         True
@@ -1586,6 +1574,12 @@ X.509 Extensions
     This is the interface against which all the following extension types are
     registered.
 
+    .. attribute:: oid
+
+        :type: :class:`ObjectIdentifier`
+
+        Returns the OID associated with the given extension type.
+
 .. class:: KeyUsage(digital_signature, content_commitment, key_encipherment, data_encipherment, key_agreement, key_cert_sign, crl_sign, encipher_only, decipher_only)
 
     .. versionadded:: 0.9
@@ -1907,8 +1901,7 @@ X.509 Extensions
         .. doctest::
 
             >>> from cryptography import x509
-            >>> from cryptography.hazmat.backends import default_backend
-            >>> issuer_cert = x509.load_pem_x509_certificate(pem_data, default_backend())
+            >>> issuer_cert = x509.load_pem_x509_certificate(pem_data)
             >>> x509.AuthorityKeyIdentifier.from_issuer_public_key(issuer_cert.public_key())
             <AuthorityKeyIdentifier(key_identifier=b'X\x01\x84$\x1b\xbc+R\x94J=\xa5\x10r\x14Q\xf5\xaf:\xc9', authority_cert_issuer=None, authority_cert_serial_number=None)>
 
@@ -1937,8 +1930,7 @@ X.509 Extensions
         .. doctest::
 
             >>> from cryptography import x509
-            >>> from cryptography.hazmat.backends import default_backend
-            >>> issuer_cert = x509.load_pem_x509_certificate(pem_data, default_backend())
+            >>> issuer_cert = x509.load_pem_x509_certificate(pem_data)
             >>> ski_ext = issuer_cert.extensions.get_extension_for_class(x509.SubjectKeyIdentifier)
             >>> x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski_ext.value)
             <AuthorityKeyIdentifier(key_identifier=b'X\x01\x84$\x1b\xbc+R\x94J=\xa5\x10r\x14Q\xf5\xaf:\xc9', authority_cert_issuer=None, authority_cert_serial_number=None)>
@@ -1959,11 +1951,19 @@ X.509 Extensions
         Returns
         :attr:`~cryptography.x509.oid.ExtensionOID.SUBJECT_KEY_IDENTIFIER`.
 
-    .. attribute:: digest
+    .. attribute:: key_identifier
+
+        .. versionadded:: 35.0.0
 
         :type: bytes
 
         The binary value of the identifier.
+
+    .. attribute:: digest
+
+        :type: bytes
+
+        The binary value of the identifier. An alias of ``key_identifier``.
 
     .. classmethod:: from_public_key(public_key)
 
@@ -1985,8 +1985,7 @@ X.509 Extensions
         .. doctest::
 
             >>> from cryptography import x509
-            >>> from cryptography.hazmat.backends import default_backend
-            >>> csr = x509.load_pem_x509_csr(pem_req_data, default_backend())
+            >>> csr = x509.load_pem_x509_csr(pem_req_data)
             >>> x509.SubjectKeyIdentifier.from_public_key(csr.public_key())
             <SubjectKeyIdentifier(digest=b'\x8c"\x98\xe2\xb5\xbf]\xe8*2\xf8\xd2\'?\x00\xd2\xc7#\xe4c')>
 
@@ -2021,9 +2020,8 @@ X.509 Extensions
         .. doctest::
 
             >>> from cryptography import x509
-            >>> from cryptography.hazmat.backends import default_backend
             >>> from cryptography.hazmat.primitives import hashes
-            >>> cert = x509.load_pem_x509_certificate(cryptography_cert_pem, default_backend())
+            >>> cert = x509.load_pem_x509_certificate(cryptography_cert_pem)
             >>> # Get the subjectAltName extension from the certificate
             >>> ext = cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
             >>> # Get the dNSName entries from the SAN extension

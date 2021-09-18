@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 INCLUDES = """
 #include <openssl/ocsp.h>
@@ -78,7 +77,7 @@ int i2d_OCSP_RESPDATA(OCSP_RESPDATA *, unsigned char **);
 
 CUSTOMIZATIONS = """
 #if ( \
-    CRYPTOGRAPHY_OPENSSL_110_OR_GREATER && \
+    !CRYPTOGRAPHY_IS_LIBRESSL && \
     CRYPTOGRAPHY_OPENSSL_LESS_THAN_110J \
     )
 /* These structs come from ocsp_lcl.h and are needed to de-opaque the struct
@@ -105,7 +104,7 @@ struct ocsp_basic_response_st {
 };
 #endif
 
-#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110
+#if CRYPTOGRAPHY_IS_LIBRESSL
 /* These functions are all taken from ocsp_cl.c in OpenSSL 1.1.0 */
 const OCSP_CERTID *OCSP_SINGLERESP_get0_id(const OCSP_SINGLERESP *single)
 {
@@ -147,7 +146,7 @@ const ASN1_OCTET_STRING *OCSP_resp_get0_signature(const OCSP_BASICRESP *bs)
 #if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110J
 const X509_ALGOR *OCSP_resp_get0_tbs_sigalg(const OCSP_BASICRESP *bs)
 {
-#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110
+#if CRYPTOGRAPHY_IS_LIBRESSL
     return bs->signatureAlgorithm;
 #else
     return &bs->signatureAlgorithm;
@@ -156,7 +155,7 @@ const X509_ALGOR *OCSP_resp_get0_tbs_sigalg(const OCSP_BASICRESP *bs)
 
 const OCSP_RESPDATA *OCSP_resp_get0_respdata(const OCSP_BASICRESP *bs)
 {
-#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110
+#if CRYPTOGRAPHY_IS_LIBRESSL
     return bs->tbsResponseData;
 #else
     return &bs->tbsResponseData;

@@ -2,11 +2,8 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import pytest
-
-import six
 
 from cryptography.exceptions import AlreadyFinalized
 from cryptography.hazmat.primitives import padding
@@ -38,10 +35,22 @@ class TestPKCS7(object):
     def test_non_bytes(self):
         padder = padding.PKCS7(128).padder()
         with pytest.raises(TypeError):
-            padder.update(u"abc")
+            padder.update("abc")
         unpadder = padding.PKCS7(128).unpadder()
         with pytest.raises(TypeError):
-            unpadder.update(u"abc")
+            unpadder.update("abc")
+
+    def test_zany_py2_bytes_subclass(self):
+        class mybytes(bytes):  # noqa: N801
+            def __str__(self):
+                return "broken"
+
+        str(mybytes())
+        padder = padding.PKCS7(128).padder()
+        padder.update(mybytes(b"abc"))
+        unpadder = padding.PKCS7(128).unpadder()
+        unpadder.update(mybytes(padder.finalize()))
+        assert unpadder.finalize() == b"abc"
 
     @pytest.mark.parametrize(
         ("size", "unpadded", "padded"),
@@ -100,7 +109,7 @@ class TestPKCS7(object):
         padded_data = padder.update(b"")
         padded_data += padder.finalize()
 
-        for i in six.iterbytes(padded_data):
+        for i in padded_data:
             assert i == 255
 
         unpadder = padding.PKCS7(2040).unpadder()
@@ -108,6 +117,18 @@ class TestPKCS7(object):
         data += unpadder.finalize()
 
         assert data == b""
+
+    def test_bytearray(self):
+        padder = padding.PKCS7(128).padder()
+        unpadded = bytearray(b"t" * 38)
+        padded = (
+            padder.update(unpadded)
+            + padder.update(unpadded)
+            + padder.finalize()
+        )
+        unpadder = padding.PKCS7(128).unpadder()
+        final = unpadder.update(padded) + unpadder.finalize()
+        assert final == unpadded + unpadded
 
 
 class TestANSIX923(object):
@@ -137,10 +158,22 @@ class TestANSIX923(object):
     def test_non_bytes(self):
         padder = padding.ANSIX923(128).padder()
         with pytest.raises(TypeError):
-            padder.update(u"abc")
+            padder.update("abc")  # type: ignore[arg-type]
         unpadder = padding.ANSIX923(128).unpadder()
         with pytest.raises(TypeError):
-            unpadder.update(u"abc")
+            unpadder.update("abc")  # type: ignore[arg-type]
+
+    def test_zany_py2_bytes_subclass(self):
+        class mybytes(bytes):  # noqa: N801
+            def __str__(self):
+                return "broken"
+
+        str(mybytes())
+        padder = padding.ANSIX923(128).padder()
+        padder.update(mybytes(b"abc"))
+        unpadder = padding.ANSIX923(128).unpadder()
+        unpadder.update(mybytes(padder.finalize()))
+        assert unpadder.finalize() == b"abc"
 
     @pytest.mark.parametrize(
         ("size", "unpadded", "padded"),
@@ -193,3 +226,15 @@ class TestANSIX923(object):
             unpadder.update(b"")
         with pytest.raises(AlreadyFinalized):
             unpadder.finalize()
+
+    def test_bytearray(self):
+        padder = padding.ANSIX923(128).padder()
+        unpadded = bytearray(b"t" * 38)
+        padded = (
+            padder.update(unpadded)
+            + padder.update(unpadded)
+            + padder.finalize()
+        )
+        unpadder = padding.ANSIX923(128).unpadder()
+        final = unpadder.update(padded) + unpadder.finalize()
+        assert final == unpadded + unpadded

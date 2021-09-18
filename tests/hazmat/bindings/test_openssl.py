@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import pytest
 
@@ -21,18 +20,6 @@ class TestOpenSSL(object):
         assert binding
         assert binding.lib
         assert binding.ffi
-
-    def test_crypto_lock_init(self):
-        b = Binding()
-
-        b.init_static_locks()
-        lock_cb = b.lib.CRYPTO_get_locking_callback()
-        if b.lib.CRYPTOGRAPHY_OPENSSL_110_OR_GREATER:
-            assert lock_cb == b.ffi.NULL
-            assert b.lib.Cryptography_HAS_LOCKING_CALLBACKS == 0
-        else:
-            assert lock_cb != b.ffi.NULL
-            assert b.lib.Cryptography_HAS_LOCKING_CALLBACKS == 1
 
     def test_add_engine_more_than_once(self):
         b = Binding()
@@ -85,7 +72,7 @@ class TestOpenSSL(object):
     def test_conditional_removal(self):
         b = Binding()
 
-        if b.lib.CRYPTOGRAPHY_OPENSSL_110_OR_GREATER:
+        if not b.lib.CRYPTOGRAPHY_IS_LIBRESSL:
             assert b.lib.TLS_ST_OK
         else:
             with pytest.raises(AttributeError):

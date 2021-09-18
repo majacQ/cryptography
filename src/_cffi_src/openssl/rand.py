@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 INCLUDES = """
 #include <openssl/rand.h>
@@ -10,8 +9,6 @@ INCLUDES = """
 
 TYPES = """
 typedef ... RAND_METHOD;
-
-static const long Cryptography_HAS_EGD;
 """
 
 FUNCTIONS = """
@@ -27,5 +24,4 @@ void ERR_load_RAND_strings(void);
 """
 
 CUSTOMIZATIONS = """
-static const long Cryptography_HAS_EGD = 0;
 """

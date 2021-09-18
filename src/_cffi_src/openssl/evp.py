@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 INCLUDES = """
 #include <openssl/evp.h>
@@ -48,6 +47,7 @@ int EVP_CipherUpdate(EVP_CIPHER_CTX *, unsigned char *, int *,
                      const unsigned char *, int);
 int EVP_CipherFinal_ex(EVP_CIPHER_CTX *, unsigned char *, int *);
 int EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *);
+int EVP_CIPHER_CTX_reset(EVP_CIPHER_CTX *);
 EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void);
 void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *);
 int EVP_CIPHER_CTX_set_key_length(EVP_CIPHER_CTX *, int);
@@ -101,6 +101,9 @@ int EVP_PKEY_sign(EVP_PKEY_CTX *, unsigned char *, size_t *,
 int EVP_PKEY_verify_init(EVP_PKEY_CTX *);
 int EVP_PKEY_verify(EVP_PKEY_CTX *, const unsigned char *, size_t,
                     const unsigned char *, size_t);
+int EVP_PKEY_verify_recover_init(EVP_PKEY_CTX *);
+int EVP_PKEY_verify_recover(EVP_PKEY_CTX *, unsigned char *,
+                            size_t *, const unsigned char *, size_t);
 int EVP_PKEY_encrypt_init(EVP_PKEY_CTX *);
 int EVP_PKEY_decrypt_init(EVP_PKEY_CTX *);
 
@@ -120,11 +123,12 @@ int EVP_PKEY_set_type(EVP_PKEY *, int);
 int EVP_PKEY_id(const EVP_PKEY *);
 int Cryptography_EVP_PKEY_id(const EVP_PKEY *);
 
-/* in 1.1.0 _create and _destroy were renamed to _new and _free. The following
-   two functions wrap both the old and new functions so we can call them
-   without worrying about what OpenSSL we're running against. */
+EVP_MD_CTX *EVP_MD_CTX_new(void);
+void EVP_MD_CTX_free(EVP_MD_CTX *);
+/* Backwards compat aliases for pyOpenSSL */
 EVP_MD_CTX *Cryptography_EVP_MD_CTX_new(void);
 void Cryptography_EVP_MD_CTX_free(EVP_MD_CTX *);
+
 /* Added in 1.1.1 */
 int EVP_DigestSign(EVP_MD_CTX *, unsigned char *, size_t *,
                    const unsigned char *, size_t);
@@ -174,22 +178,14 @@ const long EVP_PKEY_DHX = -1;
 int Cryptography_EVP_PKEY_id(const EVP_PKEY *key) {
     return EVP_PKEY_id(key);
 }
-
 EVP_MD_CTX *Cryptography_EVP_MD_CTX_new(void) {
-#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110
-    return EVP_MD_CTX_create();
-#else
     return EVP_MD_CTX_new();
-#endif
 }
-void Cryptography_EVP_MD_CTX_free(EVP_MD_CTX *ctx) {
-#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110
-    EVP_MD_CTX_destroy(ctx);
-#else
-    EVP_MD_CTX_free(ctx);
-#endif
+void Cryptography_EVP_MD_CTX_free(EVP_MD_CTX *md) {
+    EVP_MD_CTX_free(md);
 }
-#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110 || defined(OPENSSL_NO_SCRYPT)
+
+#if CRYPTOGRAPHY_IS_LIBRESSL || defined(OPENSSL_NO_SCRYPT)
 static const long Cryptography_HAS_SCRYPT = 0;
 int (*EVP_PBE_scrypt)(const char *, size_t, const unsigned char *, size_t,
                       uint64_t, uint64_t, uint64_t, uint64_t, unsigned char *,
@@ -198,7 +194,7 @@ int (*EVP_PBE_scrypt)(const char *, size_t, const unsigned char *, size_t,
 static const long Cryptography_HAS_SCRYPT = 1;
 #endif
 
-#if CRYPTOGRAPHY_OPENSSL_110_OR_GREATER
+#if !CRYPTOGRAPHY_IS_LIBRESSL
 static const long Cryptography_HAS_EVP_PKEY_get_set_tls_encodedpoint = 1;
 #else
 static const long Cryptography_HAS_EVP_PKEY_get_set_tls_encodedpoint = 0;

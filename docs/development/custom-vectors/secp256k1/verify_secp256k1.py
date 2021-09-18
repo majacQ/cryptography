@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import os
 
 from cryptography.hazmat.backends import default_backend
@@ -35,12 +33,12 @@ def verify_one_vector(vector):
         signature, ec.ECDSA(CRYPTOGRAPHY_HASH_TYPES[digest_algorithm]())
     )
     verifier.update(message)
-    return verifier.verify()
+    verifier.verify()
 
 
 def verify_vectors(vectors):
     for vector in vectors:
-        assert verify_one_vector(vector)
+        verify_one_vector(vector)
 
 
 vector_path = os.path.join("asymmetric", "ECDSA", "SECP256K1", "SigGen.txt")

@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 
@@ -13,7 +12,6 @@ from cryptography.exceptions import (
     InvalidSignature,
     _Reasons,
 )
-from cryptography.hazmat.backends.interfaces import CMACBackend
 from cryptography.hazmat.primitives.ciphers.algorithms import (
     AES,
     ARC4,
@@ -49,7 +47,6 @@ vectors_3des = load_vectors_from_file(
 fake_key = b"\x00" * 16
 
 
-@pytest.mark.requires_backend_interface(interface=CMACBackend)
 class TestCMAC(object):
     @pytest.mark.supported(
         only_if=lambda backend: backend.cmac_algorithm_supported(
@@ -81,7 +78,7 @@ class TestCMAC(object):
 
         cmac = CMAC(AES(binascii.unhexlify(key)), backend)
         cmac.update(binascii.unhexlify(message))
-        assert cmac.verify(binascii.unhexlify(output)) is None
+        cmac.verify(binascii.unhexlify(output))
 
     @pytest.mark.supported(
         only_if=lambda backend: backend.cmac_algorithm_supported(
@@ -123,7 +120,7 @@ class TestCMAC(object):
 
         cmac = CMAC(TripleDES(binascii.unhexlify(key)), backend)
         cmac.update(binascii.unhexlify(message))
-        assert cmac.verify(binascii.unhexlify(output)) is None
+        cmac.verify(binascii.unhexlify(output))
 
     @pytest.mark.supported(
         only_if=lambda backend: backend.cmac_algorithm_supported(
@@ -146,7 +143,7 @@ class TestCMAC(object):
     def test_invalid_algorithm(self, backend):
         key = b"0102030405"
         with pytest.raises(TypeError):
-            CMAC(ARC4(key), backend)
+            CMAC(ARC4(key), backend)  # type: ignore[arg-type]
 
     @pytest.mark.supported(
         only_if=lambda backend: backend.cmac_algorithm_supported(
@@ -182,10 +179,10 @@ class TestCMAC(object):
         cmac = CMAC(AES(key), backend)
 
         with pytest.raises(TypeError):
-            cmac.update(u"")
+            cmac.update("")  # type: ignore[arg-type]
 
         with pytest.raises(TypeError):
-            cmac.verify(u"")
+            cmac.verify("")  # type: ignore[arg-type]
 
     @pytest.mark.supported(
         only_if=lambda backend: backend.cmac_algorithm_supported(
@@ -220,4 +217,4 @@ def test_invalid_backend():
     pretend_backend = object()
 
     with raises_unsupported_algorithm(_Reasons.BACKEND_MISSING_INTERFACE):
-        CMAC(AES(key), pretend_backend)
+        CMAC(AES(key), pretend_backend)  # type: ignore[arg-type]
