@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 __all__ = [
     "__title__",
@@ -22,9 +21,29 @@ __summary__ = (
 )
 __uri__ = "https://github.com/pyca/cryptography"
 
+  <<<<<<< 3.4.x
+  <<<<<<< 3.4.x
+  <<<<<<< dependabot/github_actions/actions/upload-artifact-v2.2.2
+  <<<<<<< 3.1.x
+__version__ = "3.1.1"
+  =======
+__version__ = "35.0.0.dev1"
+  >>>>>>> dependabot/github_actions/actions/upload-artifact-v2.2.2
+  =======
+  <<<<<<< circleci-project-setup
+__version__ = "35.0.0.dev1"
+  =======
+__version__ = "3.4.6"
+  >>>>>>> 3.4.x
+  >>>>>>> 3.4.x
+  =======
+__version__ = "3.4.8"
+  >>>>>>> 3.4.x
+  =======
 __version__ = "3.3.2"
+  >>>>>>> 3.3.x
 
-__author__ = "The cryptography developers"
+__author__ = "The Python Cryptographic Authority and individual contributors"
 __email__ = "cryptography-dev@python.org"
 
 __license__ = "BSD or Apache License, Version 2.0"

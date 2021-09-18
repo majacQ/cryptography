@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 from cryptography.hazmat.backends import _get_backend, default_backend
 
@@ -13,4 +12,4 @@ def test_get_backend_no_backend():
 
 def test_get_backend():
     faux_backend = object()
-    assert _get_backend(faux_backend) is faux_backend
+    assert _get_backend(faux_backend) is faux_backend  # type: ignore[arg-type]

@@ -2,12 +2,10 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import pytest
 
 from cryptography.exceptions import _Reasons
-from cryptography.hazmat.backends.interfaces import HMACBackend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.twofactor import InvalidToken
 from cryptography.hazmat.primitives.twofactor.totp import TOTP
@@ -21,7 +19,6 @@ from ....utils import (
 vectors = load_vectors_from_file("twofactor/rfc-6238.txt", load_nist_vectors)
 
 
-@pytest.mark.requires_backend_interface(interface=HMACBackend)
 class TestTOTP(object):
     @pytest.mark.supported(
         only_if=lambda backend: backend.hmac_supported(hashes.SHA1()),
@@ -81,8 +78,7 @@ class TestTOTP(object):
         totp_value = params["totp"]
 
         totp = TOTP(secret, 8, hashes.SHA1(), 30, backend)
-
-        assert totp.verify(totp_value, time) is None
+        totp.verify(totp_value, time)
 
     @pytest.mark.supported(
         only_if=lambda backend: backend.hmac_supported(hashes.SHA256()),
@@ -97,8 +93,7 @@ class TestTOTP(object):
         totp_value = params["totp"]
 
         totp = TOTP(secret, 8, hashes.SHA256(), 30, backend)
-
-        assert totp.verify(totp_value, time) is None
+        totp.verify(totp_value, time)
 
     @pytest.mark.supported(
         only_if=lambda backend: backend.hmac_supported(hashes.SHA512()),
@@ -113,8 +108,7 @@ class TestTOTP(object):
         totp_value = params["totp"]
 
         totp = TOTP(secret, 8, hashes.SHA512(), 30, backend)
-
-        assert totp.verify(totp_value, time) is None
+        totp.verify(totp_value, time)
 
     def test_invalid_verify(self, backend):
         secret = b"12345678901234567890"
@@ -161,4 +155,10 @@ def test_invalid_backend():
     pretend_backend = object()
 
     with raises_unsupported_algorithm(_Reasons.BACKEND_MISSING_INTERFACE):
-        TOTP(secret, 8, hashes.SHA1(), 30, pretend_backend)
+        TOTP(
+            secret,
+            8,
+            hashes.SHA1(),
+            30,
+            pretend_backend,  # type: ignore[arg-type]
+        )

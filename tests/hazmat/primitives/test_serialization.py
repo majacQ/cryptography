@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import base64
 import itertools
@@ -11,16 +10,7 @@ import textwrap
 
 import pytest
 
-import six
-
 from cryptography.exceptions import UnsupportedAlgorithm
-from cryptography.hazmat.backends.interfaces import (
-    DERSerializationBackend,
-    DSABackend,
-    EllipticCurveBackend,
-    PEMSerializationBackend,
-    RSABackend,
-)
 from cryptography.hazmat.primitives.asymmetric import (
     dsa,
     ec,
@@ -33,6 +23,7 @@ from cryptography.hazmat.primitives.asymmetric import (
 from cryptography.hazmat.primitives.serialization import (
     BestAvailableEncryption,
     Encoding,
+    KeySerializationEncryption,
     NoEncryption,
     PrivateFormat,
     PublicFormat,
@@ -66,7 +57,6 @@ def _skip_fips_format(key_path, password, backend):
 
 
 class TestBufferProtocolSerialization(object):
-    @pytest.mark.requires_backend_interface(interface=RSABackend)
     @pytest.mark.parametrize(
         ("key_path", "password"),
         [
@@ -87,7 +77,6 @@ class TestBufferProtocolSerialization(object):
         assert isinstance(key, rsa.RSAPrivateKey)
         _check_rsa_private_numbers(key.private_numbers())
 
-    @pytest.mark.requires_backend_interface(interface=RSABackend)
     @pytest.mark.parametrize(
         ("key_path", "password"),
         [
@@ -117,9 +106,7 @@ class TestBufferProtocolSerialization(object):
         _check_rsa_private_numbers(key.private_numbers())
 
 
-@pytest.mark.requires_backend_interface(interface=DERSerializationBackend)
 class TestDERSerialization(object):
-    @pytest.mark.requires_backend_interface(interface=RSABackend)
     @pytest.mark.parametrize(
         ("key_path", "password"),
         [
@@ -141,7 +128,6 @@ class TestDERSerialization(object):
         assert isinstance(key, rsa.RSAPrivateKey)
         _check_rsa_private_numbers(key.private_numbers())
 
-    @pytest.mark.requires_backend_interface(interface=DSABackend)
     @pytest.mark.parametrize(
         ("key_path", "password"),
         [
@@ -166,16 +152,17 @@ class TestDERSerialization(object):
     @pytest.mark.parametrize(
         "key_path", [["DER_Serialization", "enc-rsa-pkcs8.der"]]
     )
-    @pytest.mark.requires_backend_interface(interface=RSABackend)
     def test_password_not_bytes(self, key_path, backend):
         key_file = os.path.join("asymmetric", *key_path)
-        password = u"this password is not bytes"
+        password = "this password is not bytes"
 
         with pytest.raises(TypeError):
             load_vectors_from_file(
                 key_file,
                 lambda derfile: load_der_private_key(
-                    derfile.read(), password, backend
+                    derfile.read(),
+                    password,  # type:ignore[arg-type]
+                    backend,
                 ),
                 mode="rb",
             )
@@ -187,7 +174,6 @@ class TestDERSerialization(object):
             (["DER_Serialization", "ec_private_key_encrypted.der"], b"123456"),
         ],
     )
-    @pytest.mark.requires_backend_interface(interface=EllipticCurveBackend)
     def test_load_der_ec_private_key(self, key_path, password, backend):
         _skip_curve_unsupported(backend, ec.SECP256R1())
         key = load_vectors_from_file(
@@ -206,7 +192,6 @@ class TestDERSerialization(object):
     @pytest.mark.parametrize(
         "key_path", [["DER_Serialization", "enc-rsa-pkcs8.der"]]
     )
-    @pytest.mark.requires_backend_interface(interface=RSABackend)
     def test_wrong_password(self, key_path, backend):
         key_file = os.path.join("asymmetric", *key_path)
         password = b"this password is wrong"
@@ -223,7 +208,6 @@ class TestDERSerialization(object):
     @pytest.mark.parametrize(
         "key_path", [["DER_Serialization", "unenc-rsa-pkcs8.der"]]
     )
-    @pytest.mark.requires_backend_interface(interface=RSABackend)
     def test_unused_password(self, key_path, backend):
         key_file = os.path.join("asymmetric", *key_path)
         password = b"this password will not be used"
@@ -243,7 +227,6 @@ class TestDERSerialization(object):
             [["DER_Serialization", "enc-rsa-pkcs8.der"]], [b"", None]
         ),
     )
-    @pytest.mark.requires_backend_interface(interface=RSABackend)
     def test_missing_password(self, key_path, password, backend):
         key_file = os.path.join("asymmetric", *key_path)
 
@@ -330,7 +313,6 @@ class TestDERSerialization(object):
             os.path.join("asymmetric", "public", "PKCS1", "rsa.pub.der"),
         ],
     )
-    @pytest.mark.requires_backend_interface(interface=RSABackend)
     def test_load_der_rsa_public_key(self, key_file, backend):
         key = load_vectors_from_file(
             key_file,
@@ -357,7 +339,6 @@ class TestDERSerialization(object):
             ),
         ],
     )
-    @pytest.mark.requires_backend_interface(interface=DSABackend)
     def test_load_der_dsa_public_key(self, key_file, backend):
         key = load_vectors_from_file(
             key_file,
@@ -367,7 +348,6 @@ class TestDERSerialization(object):
         assert key
         assert isinstance(key, dsa.DSAPublicKey)
 
-    @pytest.mark.requires_backend_interface(interface=EllipticCurveBackend)
     def test_load_ec_public_key(self, backend):
         _skip_curve_unsupported(backend, ec.SECP256R1())
         key = load_vectors_from_file(
@@ -389,7 +369,6 @@ class TestDERSerialization(object):
             load_der_parameters(param_data, backend)
 
 
-@pytest.mark.requires_backend_interface(interface=PEMSerializationBackend)
 class TestPEMSerialization(object):
     @pytest.mark.parametrize(
         ("key_file", "password"),
@@ -461,7 +440,6 @@ class TestPEMSerialization(object):
             (["PEM_Serialization", "ec_private_key_encrypted.pem"], b"123456"),
         ],
     )
-    @pytest.mark.requires_backend_interface(interface=EllipticCurveBackend)
     def test_load_pem_ec_private_key(self, key_path, password, backend):
         _skip_curve_unsupported(backend, ec.SECP256R1())
         _skip_fips_format(key_path, password, backend)
@@ -518,7 +496,6 @@ class TestPEMSerialization(object):
         assert key
         assert isinstance(key, dsa.DSAPublicKey)
 
-    @pytest.mark.requires_backend_interface(interface=EllipticCurveBackend)
     def test_load_ec_public_key(self, backend):
         _skip_curve_unsupported(backend, ec.SECP256R1())
         key = load_vectors_from_file(
@@ -627,13 +604,15 @@ class TestPEMSerialization(object):
     )
     def test_password_not_bytes(self, key_path, backend):
         key_file = os.path.join("asymmetric", *key_path)
-        password = u"this password is not bytes"
+        password = "this password is not bytes"
 
         with pytest.raises(TypeError):
             load_vectors_from_file(
                 key_file,
                 lambda pemfile: load_pem_private_key(
-                    pemfile.read().encode(), password, backend
+                    pemfile.read().encode(),
+                    password,  # type:ignore[arg-type]
+                    backend,
                 ),
             )
 
@@ -974,7 +953,6 @@ class TestPEMSerialization(object):
             )
 
 
-@pytest.mark.requires_backend_interface(interface=RSABackend)
 class TestRSASSHSerialization(object):
     def test_load_ssh_public_key_unsupported(self, backend):
         ssh_key = b"ecdsa-sha2-junk AAAAE2VjZHNhLXNoYTItbmlzdHAyNTY="
@@ -1087,7 +1065,6 @@ class TestRSASSHSerialization(object):
         assert numbers == expected
 
 
-@pytest.mark.requires_backend_interface(interface=DSABackend)
 class TestDSSSSHSerialization(object):
     def test_load_ssh_public_key_dss_too_short(self, backend):
         ssh_key = b"ssh-dss"
@@ -1201,7 +1178,6 @@ class TestDSSSSHSerialization(object):
         assert numbers == expected
 
 
-@pytest.mark.requires_backend_interface(interface=EllipticCurveBackend)
 class TestECDSASSHSerialization(object):
     def test_load_ssh_public_key_ecdsa_nist_p256(self, backend):
         _skip_curve_unsupported(backend, ec.SECP256R1())
@@ -1238,9 +1214,8 @@ class TestECDSASSHSerialization(object):
             b"teIg1TO03/FD9hbpBFgBeix3NrCFPls= root@cloud-server-01"
         )
         assert load_ssh_public_key(bytearray(ssh_key), backend)
-        if six.PY3:
-            assert load_ssh_public_key(memoryview(ssh_key), backend)
-            assert load_ssh_public_key(memoryview(bytearray(ssh_key)), backend)
+        assert load_ssh_public_key(memoryview(ssh_key), backend)
+        assert load_ssh_public_key(memoryview(bytearray(ssh_key)), backend)
 
     def test_load_ssh_public_key_ecdsa_nist_p384(self, backend):
         _skip_curve_unsupported(backend, ec.SECP384R1())
@@ -1251,6 +1226,7 @@ class TestECDSASSHSerialization(object):
             b"qQtRSEU8Tg== root@cloud-server-01"
         )
         key = load_ssh_public_key(ssh_key, backend)
+        assert isinstance(key, ec.EllipticCurvePublicKey)
 
         expected_x = int(
             "31541830871345183397582554827482786756220448716666815789487537666"
@@ -1277,6 +1253,7 @@ class TestECDSASSHSerialization(object):
             b"root@cloud-server-01"
         )
         key = load_ssh_public_key(ssh_key, backend)
+        assert isinstance(key, ec.EllipticCurvePublicKey)
 
         expected_x = int(
             "54124123120178189598842622575230904027376313369742467279346415219"
@@ -1383,7 +1360,7 @@ class TestEd25519SSHSerialization(object):
 class TestKeySerializationEncryptionTypes(object):
     def test_non_bytes_password(self):
         with pytest.raises(ValueError):
-            BestAvailableEncryption(object())
+            BestAvailableEncryption(object())  # type:ignore[arg-type]
 
     def test_encryption_with_zero_length_password(self):
         with pytest.raises(ValueError):
@@ -1819,9 +1796,6 @@ class TestDHSerialization(object):
                     private_key.private_bytes(enc, fmt, NoEncryption())
 
 
-@pytest.mark.requires_backend_interface(interface=RSABackend)
-@pytest.mark.requires_backend_interface(interface=DSABackend)
-@pytest.mark.requires_backend_interface(interface=EllipticCurveBackend)
 class TestOpenSSHSerialization(object):
     @pytest.mark.parametrize(
         ("key_file", "cert_file"),
@@ -1942,31 +1916,30 @@ class TestOpenSSHSerialization(object):
             == nocomment_data
         )
 
-        if six.PY3:
-            # memoryview(bytes)
-            private_key = load_ssh_private_key(
-                memoryview(priv_data), password, backend
+        # memoryview(bytes)
+        private_key = load_ssh_private_key(
+            memoryview(priv_data), password, backend
+        )
+        assert (
+            private_key.public_key().public_bytes(
+                Encoding.OpenSSH, PublicFormat.OpenSSH
             )
-            assert (
-                private_key.public_key().public_bytes(
-                    Encoding.OpenSSH, PublicFormat.OpenSSH
-                )
-                == nocomment_data
-            )
+            == nocomment_data
+        )
 
-            # memoryview(bytearray)
-            private_key = load_ssh_private_key(
-                memoryview(bytearray(priv_data)), password, backend
+        # memoryview(bytearray)
+        private_key = load_ssh_private_key(
+            memoryview(bytearray(priv_data)), password, backend
+        )
+        assert (
+            private_key.public_key().public_bytes(
+                Encoding.OpenSSH, PublicFormat.OpenSSH
             )
-            assert (
-                private_key.public_key().public_bytes(
-                    Encoding.OpenSSH, PublicFormat.OpenSSH
-                )
-                == nocomment_data
-            )
+            == nocomment_data
+        )
 
         # serialize with own code and reload
-        encryption = NoEncryption()
+        encryption: KeySerializationEncryption = NoEncryption()
         if password:
             encryption = BestAvailableEncryption(password)
         priv_data2 = private_key.private_bytes(
@@ -2022,24 +1995,23 @@ class TestOpenSSHSerialization(object):
             )
             assert pub1 == pub2
 
-            if six.PY3:
-                # memoryview(bytes)
-                decoded_key2 = load_ssh_private_key(
-                    memoryview(encdata), psw, backend
-                )
-                pub2 = decoded_key2.public_key().public_bytes(
-                    Encoding.OpenSSH, PublicFormat.OpenSSH
-                )
-                assert pub1 == pub2
+            # memoryview(bytes)
+            decoded_key2 = load_ssh_private_key(
+                memoryview(encdata), psw, backend
+            )
+            pub2 = decoded_key2.public_key().public_bytes(
+                Encoding.OpenSSH, PublicFormat.OpenSSH
+            )
+            assert pub1 == pub2
 
-                # memoryview(bytearray)
-                decoded_key2 = load_ssh_private_key(
-                    memoryview(bytearray(encdata)), psw, backend
-                )
-                pub2 = decoded_key2.public_key().public_bytes(
-                    Encoding.OpenSSH, PublicFormat.OpenSSH
-                )
-                assert pub1 == pub2
+            # memoryview(bytearray)
+            decoded_key2 = load_ssh_private_key(
+                memoryview(bytearray(encdata)), psw, backend
+            )
+            pub2 = decoded_key2.public_key().public_bytes(
+                Encoding.OpenSSH, PublicFormat.OpenSSH
+            )
+            assert pub1 == pub2
 
             with pytest.raises(ValueError):
                 decoded_key = load_ssh_private_key(encdata, None, backend)
@@ -2300,7 +2272,10 @@ class TestOpenSSHSerialization(object):
 
         # bad object type
         with pytest.raises(ValueError):
-            ssh.serialize_ssh_private_key(object(), None)
+            ssh.serialize_ssh_private_key(
+                object(),  # type:ignore[arg-type]
+                None,
+            )
 
         private_key = ec.generate_private_key(ec.SECP256R1(), backend)
 

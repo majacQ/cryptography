@@ -2,23 +2,21 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 
 import pytest
 
 from cryptography.exceptions import InvalidTag
-from cryptography.hazmat.backends.interfaces import CipherBackend
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.aead import AESCCM, AESGCM
 
+from .utils import wycheproof_tests
 from ..hazmat.primitives.test_aead import _aead_supported
 
 
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-@pytest.mark.wycheproof_tests("aes_cbc_pkcs5_test.json")
+@wycheproof_tests("aes_cbc_pkcs5_test.json")
 def test_aes_cbc_pkcs5(backend, wycheproof):
     key = binascii.unhexlify(wycheproof.testcase["key"])
     iv = binascii.unhexlify(wycheproof.testcase["iv"])
@@ -45,8 +43,7 @@ def test_aes_cbc_pkcs5(backend, wycheproof):
             unpadder.update(padded_msg) + unpadder.finalize()
 
 
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-@pytest.mark.wycheproof_tests("aes_gcm_test.json")
+@wycheproof_tests("aes_gcm_test.json")
 def test_aes_gcm(backend, wycheproof):
     key = binascii.unhexlify(wycheproof.testcase["key"])
     iv = binascii.unhexlify(wycheproof.testcase["iv"])
@@ -90,8 +87,7 @@ def test_aes_gcm(backend, wycheproof):
             dec.finalize()
 
 
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-@pytest.mark.wycheproof_tests("aes_gcm_test.json")
+@wycheproof_tests("aes_gcm_test.json")
 def test_aes_gcm_aead_api(backend, wycheproof):
     key = binascii.unhexlify(wycheproof.testcase["key"])
     iv = binascii.unhexlify(wycheproof.testcase["iv"])
@@ -124,8 +120,7 @@ def test_aes_gcm_aead_api(backend, wycheproof):
     not _aead_supported(AESCCM),
     reason="Requires OpenSSL with AES-CCM support",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-@pytest.mark.wycheproof_tests("aes_ccm_test.json")
+@wycheproof_tests("aes_ccm_test.json")
 def test_aes_ccm_aead_api(backend, wycheproof):
     key = binascii.unhexlify(wycheproof.testcase["key"])
     iv = binascii.unhexlify(wycheproof.testcase["iv"])

@@ -2,18 +2,17 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 
 import pytest
 
-from cryptography.hazmat.backends.interfaces import CipherBackend
 from cryptography.hazmat.primitives import keywrap
 
+from .utils import wycheproof_tests
 
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-@pytest.mark.wycheproof_tests("kwp_test.json")
+
+@wycheproof_tests("kwp_test.json")
 def test_keywrap_with_padding(backend, wycheproof):
     wrapping_key = binascii.unhexlify(wycheproof.testcase["key"])
     key_to_wrap = binascii.unhexlify(wycheproof.testcase["msg"])
@@ -37,8 +36,7 @@ def test_keywrap_with_padding(backend, wycheproof):
             )
 
 
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-@pytest.mark.wycheproof_tests("kw_test.json")
+@wycheproof_tests("kw_test.json")
 def test_keywrap(backend, wycheproof):
     wrapping_key = binascii.unhexlify(wycheproof.testcase["key"])
     key_to_wrap = binascii.unhexlify(wycheproof.testcase["msg"])

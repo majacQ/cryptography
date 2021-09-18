@@ -9,9 +9,9 @@ for P in ${PYTHONS}; do
 
     PYBIN=/opt/python/${P}/bin
 
-    "${PYBIN}"/python -m virtualenv .venv
+    "${PYBIN}"/python -m venv .venv
 
-    .venv/bin/pip install cffi six ipaddress "enum34; python_version < '3'"
+    .venv/bin/pip install -U pip wheel cffi setuptools-rust
 
     REGEX="cp3([0-9])*"
     if [[ "${PYBIN}" =~ $REGEX ]]; then
@@ -28,7 +28,7 @@ for P in ${PYTHONS}; do
     # NOTE(ianw) : no execstack on aarch64, comes from
     # prelink, which was never supported.  CentOS 8 does
     # have it separate, skip for now.
-    if [[ "${PLAT}" != "manylinux2014_aarch64" ]]; then
+    if [[ ! "${PLAT}" =~ "aarch64" ]]; then
         for f in wheelhouse/*.whl; do
             unzip $f -d execstack.check
 

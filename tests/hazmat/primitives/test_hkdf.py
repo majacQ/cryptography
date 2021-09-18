@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 import os
@@ -10,7 +9,6 @@ import os
 import pytest
 
 from cryptography.exceptions import AlreadyFinalized, InvalidKey, _Reasons
-from cryptography.hazmat.backends.interfaces import HMACBackend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF, HKDFExpand
 
@@ -21,7 +19,6 @@ from ...utils import (
 )
 
 
-@pytest.mark.requires_backend_interface(interface=HMACBackend)
 class TestHKDF(object):
     def test_length_limit(self, backend):
         big_length = 255 * hashes.SHA256().digest_size + 1
@@ -65,31 +62,43 @@ class TestHKDF(object):
 
     def test_unicode_typeerror(self, backend):
         with pytest.raises(TypeError):
-            HKDF(hashes.SHA256(), 16, salt=u"foo", info=None, backend=backend)
+            HKDF(
+                hashes.SHA256(),
+                16,
+                salt="foo",  # type: ignore[arg-type]
+                info=None,
+                backend=backend,
+            )
 
         with pytest.raises(TypeError):
-            HKDF(hashes.SHA256(), 16, salt=None, info=u"foo", backend=backend)
+            HKDF(
+                hashes.SHA256(),
+                16,
+                salt=None,
+                info="foo",  # type: ignore[arg-type]
+                backend=backend,
+            )
 
         with pytest.raises(TypeError):
             hkdf = HKDF(
                 hashes.SHA256(), 16, salt=None, info=None, backend=backend
             )
 
-            hkdf.derive(u"foo")
+            hkdf.derive("foo")  # type: ignore[arg-type]
 
         with pytest.raises(TypeError):
             hkdf = HKDF(
                 hashes.SHA256(), 16, salt=None, info=None, backend=backend
             )
 
-            hkdf.verify(u"foo", b"bar")
+            hkdf.verify("foo", b"bar")  # type: ignore[arg-type]
 
         with pytest.raises(TypeError):
             hkdf = HKDF(
                 hashes.SHA256(), 16, salt=None, info=None, backend=backend
             )
 
-            hkdf.verify(b"foo", u"bar")
+            hkdf.verify(b"foo", "bar")  # type: ignore[arg-type]
 
     def test_derive_short_output(self, backend):
         hkdf = HKDF(hashes.SHA256(), 4, salt=None, info=None, backend=backend)
@@ -127,7 +136,6 @@ class TestHKDF(object):
         assert hkdf.derive(ikm) == binascii.unhexlify(vector["okm"])
 
 
-@pytest.mark.requires_backend_interface(interface=HMACBackend)
 class TestHKDFExpand(object):
     def test_derive(self, backend):
         prk = binascii.unhexlify(
@@ -175,7 +183,7 @@ class TestHKDFExpand(object):
         info = binascii.unhexlify(b"f0f1f2f3f4f5f6f7f8f9")
         hkdf = HKDFExpand(hashes.SHA256(), 42, info, backend)
 
-        assert hkdf.verify(prk, binascii.unhexlify(okm)) is None
+        hkdf.verify(prk, binascii.unhexlify(okm))
 
     def test_invalid_verify(self, backend):
         prk = binascii.unhexlify(
@@ -202,14 +210,22 @@ class TestHKDFExpand(object):
         hkdf = HKDFExpand(hashes.SHA256(), 42, info, backend)
 
         with pytest.raises(TypeError):
-            hkdf.derive(u"first")
+            hkdf.derive("first")  # type: ignore[arg-type]
 
 
 def test_invalid_backend():
     pretend_backend = object()
 
     with raises_unsupported_algorithm(_Reasons.BACKEND_MISSING_INTERFACE):
-        HKDF(hashes.SHA256(), 16, None, None, pretend_backend)
+        HKDF(
+            hashes.SHA256(),
+            16,
+            None,
+            None,
+            pretend_backend,  # type:ignore[arg-type]
+        )
 
     with raises_unsupported_algorithm(_Reasons.BACKEND_MISSING_INTERFACE):
-        HKDFExpand(hashes.SHA256(), 16, None, pretend_backend)
+        HKDFExpand(
+            hashes.SHA256(), 16, None, pretend_backend  # type:ignore[arg-type]
+        )

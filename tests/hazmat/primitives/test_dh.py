@@ -2,22 +2,16 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 import itertools
 import os
+import typing
 
 import pytest
 
-from cryptography.hazmat.backends.interfaces import (
-    DERSerializationBackend,
-    DHBackend,
-    PEMSerializationBackend,
-)
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import dh
-from cryptography.utils import int_from_bytes
 
 from .fixtures_dh import FFDH3072_P
 from ...doubles import DummyKeySerializationEncryption
@@ -51,13 +45,13 @@ def test_dh_parameternumbers():
     assert params.g == 2
 
     with pytest.raises(TypeError):
-        dh.DHParameterNumbers(None, 2)
+        dh.DHParameterNumbers(None, 2)  # type: ignore[arg-type]
 
     with pytest.raises(TypeError):
-        dh.DHParameterNumbers(P_1536, None)
+        dh.DHParameterNumbers(P_1536, None)  # type: ignore[arg-type]
 
     with pytest.raises(TypeError):
-        dh.DHParameterNumbers(None, None)
+        dh.DHParameterNumbers(None, None)  # type: ignore[arg-type]
 
     with pytest.raises(ValueError):
         dh.DHParameterNumbers(P_1536, 1)
@@ -73,7 +67,7 @@ def test_dh_parameternumbers():
     assert params.q == 1245
 
     with pytest.raises(TypeError):
-        dh.DHParameterNumbers(P_1536, 2, "hello")
+        dh.DHParameterNumbers(P_1536, 2, "hello")  # type: ignore[arg-type]
 
 
 def test_dh_numbers():
@@ -85,10 +79,10 @@ def test_dh_numbers():
     assert public.y == 1
 
     with pytest.raises(TypeError):
-        dh.DHPublicNumbers(1, None)
+        dh.DHPublicNumbers(1, None)  # type: ignore[arg-type]
 
     with pytest.raises(TypeError):
-        dh.DHPublicNumbers(None, params)
+        dh.DHPublicNumbers(None, params)  # type:ignore[arg-type]
 
     private = dh.DHPrivateNumbers(1, public)
 
@@ -96,10 +90,10 @@ def test_dh_numbers():
     assert private.x == 1
 
     with pytest.raises(TypeError):
-        dh.DHPrivateNumbers(1, None)
+        dh.DHPrivateNumbers(1, None)  # type: ignore[arg-type]
 
     with pytest.raises(TypeError):
-        dh.DHPrivateNumbers(None, public)
+        dh.DHPrivateNumbers(None, public)  # type:ignore[arg-type]
 
 
 def test_dh_parameter_numbers_equality():
@@ -141,7 +135,6 @@ def test_dh_public_numbers_equality():
     assert public != object()
 
 
-@pytest.mark.requires_backend_interface(interface=DHBackend)
 class TestDH(object):
     def test_small_key_generate_dh(self, backend):
         with pytest.raises(ValueError):
@@ -171,7 +164,7 @@ class TestDH(object):
         ),
     )
     def test_dh_parameters_allows_rfc3526_groups(self, backend, vector):
-        p = int_from_bytes(binascii.unhexlify(vector["p"]), "big")
+        p = int.from_bytes(binascii.unhexlify(vector["p"]), "big")
         if (
             backend._fips_enabled
             and p.bit_length() < backend._fips_dh_min_modulus
@@ -181,11 +174,7 @@ class TestDH(object):
         params = dh.DHParameterNumbers(p, int(vector["g"]))
         param = params.parameters(backend)
         key = param.generate_private_key()
-        # This confirms that a key generated with this group
-        # will pass DH_check when we serialize and de-serialize it via
-        # the Numbers path.
-        roundtripped_key = key.private_numbers().private_key(backend)
-        assert key.private_numbers() == roundtripped_key.private_numbers()
+        assert key.private_numbers().public_numbers.parameter_numbers == params
 
     @pytest.mark.skip_fips(reason="non-FIPS parameters")
     @pytest.mark.parametrize(
@@ -209,7 +198,7 @@ class TestDH(object):
             )[0]
             p = int(vector["p"], 16)
             g = int(vector["g"], 16)
-            q = int(vector["q"], 16)
+            q: typing.Optional[int] = int(vector["q"], 16)
         else:
             parameters = backend.generate_dh_private_key_and_parameters(2, 512)
 
@@ -227,13 +216,9 @@ class TestDH(object):
         deserialized_public = public.public_key(backend)
         deserialized_private = private.private_key(backend)
 
-        assert isinstance(
-            deserialized_params, dh.DHParametersWithSerialization
-        )
-        assert isinstance(deserialized_public, dh.DHPublicKeyWithSerialization)
-        assert isinstance(
-            deserialized_private, dh.DHPrivateKeyWithSerialization
-        )
+        assert isinstance(deserialized_params, dh.DHParameters)
+        assert isinstance(deserialized_public, dh.DHPublicKey)
+        assert isinstance(deserialized_private, dh.DHPrivateKey)
 
     @pytest.mark.skip_fips(reason="FIPS requires specific parameters")
     def test_numbers_unsupported_parameters(self, backend):
@@ -276,16 +261,16 @@ class TestDH(object):
         assert isinstance(public, dh.DHPublicKey)
         assert public.key_size == key_size
 
-        assert isinstance(parameters, dh.DHParametersWithSerialization)
+        assert isinstance(parameters, dh.DHParameters)
         parameter_numbers = parameters.parameter_numbers()
         assert isinstance(parameter_numbers, dh.DHParameterNumbers)
         assert parameter_numbers.p.bit_length() == key_size
 
-        assert isinstance(public, dh.DHPublicKeyWithSerialization)
+        assert isinstance(public, dh.DHPublicKey)
         assert isinstance(public.public_numbers(), dh.DHPublicNumbers)
         assert isinstance(public.parameters(), dh.DHParameters)
 
-        assert isinstance(key, dh.DHPrivateKeyWithSerialization)
+        assert isinstance(key, dh.DHPrivateKey)
         assert isinstance(key.private_numbers(), dh.DHPrivateNumbers)
         assert isinstance(key.parameters(), dh.DHParameters)
 
@@ -309,7 +294,7 @@ class TestDH(object):
         key2 = parameters.generate_private_key()
 
         shared_key_bytes = key2.exchange(key1.public_key())
-        symkey = int_from_bytes(shared_key_bytes, "big")
+        symkey = int.from_bytes(shared_key_bytes, "big")
 
         symkey_manual = pow(
             key1.public_key().public_numbers().y,
@@ -398,6 +383,7 @@ class TestDH(object):
             mode="rb",
         )
         key = serialization.load_pem_private_key(data, None, backend)
+        assert isinstance(key, dh.DHPrivateKey)
         assert key.key_size == 256
 
     @pytest.mark.parametrize(
@@ -422,7 +408,7 @@ class TestDH(object):
         key = private.private_key(backend)
         symkey = key.exchange(public.public_key(backend))
 
-        assert int_from_bytes(symkey, "big") == int(vector["k"], 16)
+        assert int.from_bytes(symkey, "big") == int(vector["k"], 16)
 
     @pytest.mark.skip_fips(reason="non-FIPS parameters")
     @pytest.mark.parametrize(
@@ -444,13 +430,10 @@ class TestDH(object):
         symkey1 = key1.exchange(public2.public_key(backend))
         symkey2 = key2.exchange(public1.public_key(backend))
 
-        assert int_from_bytes(symkey1, "big") == int(vector["z"], 16)
-        assert int_from_bytes(symkey2, "big") == int(vector["z"], 16)
+        assert int.from_bytes(symkey1, "big") == int(vector["z"], 16)
+        assert int.from_bytes(symkey2, "big") == int(vector["z"], 16)
 
 
-@pytest.mark.requires_backend_interface(interface=DHBackend)
-@pytest.mark.requires_backend_interface(interface=PEMSerializationBackend)
-@pytest.mark.requires_backend_interface(interface=DERSerializationBackend)
 class TestDHPrivateKeySerialization(object):
     @pytest.mark.parametrize(
         ("encoding", "loader_func"),
@@ -602,7 +585,7 @@ class TestDHPrivateKeySerialization(object):
         key = parameters.generate_private_key()
         with pytest.raises(TypeError):
             key.private_bytes(
-                "notencoding",
+                "notencoding",  # type:ignore[arg-type]
                 serialization.PrivateFormat.PKCS8,
                 serialization.NoEncryption(),
             )
@@ -613,7 +596,7 @@ class TestDHPrivateKeySerialization(object):
         with pytest.raises(ValueError):
             key.private_bytes(
                 serialization.Encoding.PEM,
-                "invalidformat",
+                "invalidformat",  # type:ignore[arg-type]
                 serialization.NoEncryption(),
             )
 
@@ -624,7 +607,7 @@ class TestDHPrivateKeySerialization(object):
             key.private_bytes(
                 serialization.Encoding.PEM,
                 serialization.PrivateFormat.PKCS8,
-                "notanencalg",
+                "notanencalg",  # type:ignore[arg-type]
             )
 
     def test_private_bytes_unsupported_encryption_type(self, backend):
@@ -638,9 +621,6 @@ class TestDHPrivateKeySerialization(object):
             )
 
 
-@pytest.mark.requires_backend_interface(interface=DHBackend)
-@pytest.mark.requires_backend_interface(interface=PEMSerializationBackend)
-@pytest.mark.requires_backend_interface(interface=DERSerializationBackend)
 class TestDHPublicKeySerialization(object):
     @pytest.mark.parametrize(
         ("encoding", "loader_func"),
@@ -755,7 +735,8 @@ class TestDHPublicKeySerialization(object):
         key = parameters.generate_private_key().public_key()
         with pytest.raises(TypeError):
             key.public_bytes(
-                "notencoding", serialization.PublicFormat.SubjectPublicKeyInfo
+                "notencoding",  # type:ignore[arg-type]
+                serialization.PublicFormat.SubjectPublicKeyInfo,
             )
 
     def test_public_bytes_pkcs1_unsupported(self, backend):
@@ -767,9 +748,6 @@ class TestDHPublicKeySerialization(object):
             )
 
 
-@pytest.mark.requires_backend_interface(interface=DHBackend)
-@pytest.mark.requires_backend_interface(interface=PEMSerializationBackend)
-@pytest.mark.requires_backend_interface(interface=DERSerializationBackend)
 class TestDHParameterSerialization(object):
     @pytest.mark.parametrize(
         ("encoding", "loader_func"),
@@ -911,13 +889,17 @@ class TestDHParameterSerialization(object):
         parameters = FFDH3072_P.parameters(backend)
         with pytest.raises(TypeError):
             parameters.parameter_bytes(
-                "notencoding", serialization.ParameterFormat.PKCS3
+                "notencoding",  # type:ignore[arg-type]
+                serialization.ParameterFormat.PKCS3,
             )
 
     def test_parameter_bytes_invalid_format(self, backend):
         parameters = FFDH3072_P.parameters(backend)
         with pytest.raises(ValueError):
-            parameters.parameter_bytes(serialization.Encoding.PEM, "notformat")
+            parameters.parameter_bytes(
+                serialization.Encoding.PEM,
+                "notformat",  # type: ignore[arg-type]
+            )
 
     def test_parameter_bytes_openssh_unsupported(self, backend):
         parameters = FFDH3072_P.parameters(backend)

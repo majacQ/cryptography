@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 import os
@@ -14,7 +13,6 @@ from cryptography.exceptions import (
     InvalidKey,
     UnsupportedAlgorithm,
 )
-from cryptography.hazmat.backends.interfaces import ScryptBackend
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt, _MEM_LIMIT
 
 from tests.utils import load_nist_vectors, load_vectors_from_file
@@ -45,7 +43,10 @@ def test_memory_limit_skip():
     _skip_if_memory_limited(2 ** 31, {"p": 16, "r": 64, "n": 1024})
 
 
-@pytest.mark.requires_backend_interface(interface=ScryptBackend)
+@pytest.mark.supported(
+    only_if=lambda backend: backend.scrypt_supported(),
+    skip_message="Does not support Scrypt",
+)
 class TestScrypt(object):
     @pytest.mark.parametrize("params", vectors)
     def test_derive(self, backend, params):
@@ -83,7 +84,7 @@ class TestScrypt(object):
                 work_factor,
                 block_size,
                 parallelization_factor,
-                backend,
+                backend,  # type: ignore[arg-type]
             )
 
     def test_salt_not_bytes(self, backend):
@@ -95,7 +96,7 @@ class TestScrypt(object):
 
         with pytest.raises(TypeError):
             Scrypt(
-                salt,
+                salt,  # type: ignore[arg-type]
                 length,
                 work_factor,
                 block_size,
@@ -141,7 +142,7 @@ class TestScrypt(object):
         )
 
         with pytest.raises(TypeError):
-            scrypt.derive(password)
+            scrypt.derive(password)  # type: ignore[arg-type]
 
     def test_buffer_protocol(self, backend):
         password = bytearray(b"password")
@@ -181,7 +182,7 @@ class TestScrypt(object):
             parallelization_factor,
             backend,
         )
-        assert scrypt.verify(password, binascii.unhexlify(derived_key)) is None
+        scrypt.verify(password, binascii.unhexlify(derived_key))
 
     def test_invalid_verify(self, backend):
         password = b"password"

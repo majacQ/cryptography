@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 INCLUDES = """
 #include <openssl/x509_vfy.h>
@@ -19,7 +18,6 @@ typedef STACK_OF(X509_OBJECT) Cryptography_STACK_OF_X509_OBJECT;
 """
 
 TYPES = """
-static const long Cryptography_HAS_102_VERIFICATION;
 static const long Cryptography_HAS_110_VERIFICATION_PARAMS;
 static const long Cryptography_HAS_X509_STORE_CTX_GET_ISSUER;
 
@@ -91,12 +89,6 @@ static const int X509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE;
 static const int X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX;
 static const int X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
 static const int X509_V_ERR_CRL_PATH_VALIDATION_ERROR;
-static const int X509_V_ERR_SUITE_B_INVALID_VERSION;
-static const int X509_V_ERR_SUITE_B_INVALID_ALGORITHM;
-static const int X509_V_ERR_SUITE_B_INVALID_CURVE;
-static const int X509_V_ERR_SUITE_B_INVALID_SIGNATURE_ALGORITHM;
-static const int X509_V_ERR_SUITE_B_LOS_NOT_ALLOWED;
-static const int X509_V_ERR_SUITE_B_CANNOT_SIGN_P_384_WITH_P_256;
 static const int X509_V_ERR_HOSTNAME_MISMATCH;
 static const int X509_V_ERR_EMAIL_MISMATCH;
 static const int X509_V_ERR_IP_ADDRESS_MISMATCH;
@@ -119,10 +111,9 @@ static const long X509_V_FLAG_EXTENDED_CRL_SUPPORT;
 static const long X509_V_FLAG_USE_DELTAS;
 static const long X509_V_FLAG_CHECK_SS_SIGNATURE;
 static const long X509_V_FLAG_TRUSTED_FIRST;
-static const long X509_V_FLAG_SUITEB_128_LOS_ONLY;
-static const long X509_V_FLAG_SUITEB_192_LOS;
-static const long X509_V_FLAG_SUITEB_128_LOS;
 static const long X509_V_FLAG_PARTIAL_CHAIN;
+static const long X509_V_FLAG_NO_ALT_CHAINS;
+static const long X509_V_FLAG_NO_CHECK_TIME;
 
 static const long X509_LU_X509;
 static const long X509_LU_CRL;
@@ -156,8 +147,12 @@ int X509_STORE_CTX_init(X509_STORE_CTX *, X509_STORE *, X509 *,
                         Cryptography_STACK_OF_X509 *);
 void X509_STORE_CTX_trusted_stack(X509_STORE_CTX *,
                                   Cryptography_STACK_OF_X509 *);
+void X509_STORE_CTX_set0_trusted_stack(X509_STORE_CTX *,
+                                  Cryptography_STACK_OF_X509 *);
 void X509_STORE_CTX_set_cert(X509_STORE_CTX *, X509 *);
 void X509_STORE_CTX_set_chain(X509_STORE_CTX *,Cryptography_STACK_OF_X509 *);
+void X509_STORE_CTX_set0_untrusted(X509_STORE_CTX *,
+                                  Cryptography_STACK_OF_X509 *);
 X509_VERIFY_PARAM *X509_STORE_CTX_get0_param(X509_STORE_CTX *);
 void X509_STORE_CTX_set0_param(X509_STORE_CTX *, X509_VERIFY_PARAM *);
 int X509_STORE_CTX_set_default(X509_STORE_CTX *, const char *);
@@ -219,21 +214,6 @@ void X509_STORE_set_get_issuer(X509_STORE *, X509_STORE_CTX_get_issuer_fn);
 """
 
 CUSTOMIZATIONS = """
-#if !CRYPTOGRAPHY_IS_LIBRESSL
-static const long Cryptography_HAS_102_VERIFICATION = 1;
-#else
-static const long Cryptography_HAS_102_VERIFICATION = 0;
-static const long X509_V_ERR_SUITE_B_INVALID_VERSION = 0;
-static const long X509_V_ERR_SUITE_B_INVALID_ALGORITHM = 0;
-static const long X509_V_ERR_SUITE_B_INVALID_CURVE = 0;
-static const long X509_V_ERR_SUITE_B_INVALID_SIGNATURE_ALGORITHM = 0;
-static const long X509_V_ERR_SUITE_B_LOS_NOT_ALLOWED = 0;
-static const long X509_V_ERR_SUITE_B_CANNOT_SIGN_P_384_WITH_P_256 = 0;
-static const long X509_V_FLAG_SUITEB_128_LOS_ONLY = 0;
-static const long X509_V_FLAG_SUITEB_192_LOS = 0;
-static const long X509_V_FLAG_SUITEB_128_LOS = 0;
-#endif
-
 #if CRYPTOGRAPHY_IS_LIBRESSL
 static const long Cryptography_HAS_110_VERIFICATION_PARAMS = 0;
 #ifndef X509_CHECK_FLAG_NEVER_CHECK_SUBJECT

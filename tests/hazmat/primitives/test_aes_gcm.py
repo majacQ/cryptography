@@ -2,14 +2,12 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 import os
 
 import pytest
 
-from cryptography.hazmat.backends.interfaces import CipherBackend
 from cryptography.hazmat.primitives.ciphers import algorithms, base, modes
 
 from .utils import generate_aead_test
@@ -22,7 +20,6 @@ from ...utils import load_nist_vectors
     ),
     skip_message="Does not support AES GCM",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestAESModeGCM(object):
     test_gcm = generate_aead_test(
         load_nist_vectors,

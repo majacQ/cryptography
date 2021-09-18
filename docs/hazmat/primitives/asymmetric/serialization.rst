@@ -143,6 +143,10 @@ all begin with ``-----BEGIN {format}-----`` and end with ``-----END
         :class:`~cryptography.hazmat.backends.interfaces.PEMSerializationBackend`.
 
     :returns: One of
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x25519.X25519PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x448.X448PrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKey`,
@@ -182,6 +186,10 @@ all begin with ``-----BEGIN {format}-----`` and end with ``-----END
 
 
     :returns: One of
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x25519.X25519PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x448.X448PublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPublicKey`,
@@ -252,6 +260,10 @@ the rest.
         :class:`~cryptography.hazmat.backends.interfaces.DERSerializationBackend`.
 
     :returns: One of
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x25519.X25519PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x448.X448PrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKey`,
@@ -291,6 +303,10 @@ the rest.
         :class:`~cryptography.hazmat.backends.interfaces.DERSerializationBackend`.
 
     :returns: One of
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x25519.X25519PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x448.X448PublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPublicKey`,
@@ -432,11 +448,11 @@ An example ECDSA key in OpenSSH format::
         depending on the key's type.
 
     :returns: One of
-        :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`,
-        :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`,
-        :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`
+        :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`
         or
-        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey`,
         depending on the contents of ``data``.
 
     :raises ValueError: If the OpenSSH data could not be properly decoded,
@@ -924,15 +940,14 @@ Serialization Encryption Types
 
     Objects with this interface are usable as encryption types with methods
     like ``private_bytes`` available on
-    :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKeyWithSerialization`
+    :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`
     ,
-    :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKeyWithSerialization`
-    , :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKeyWithSerialization`
+    :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`
+    , :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKey`
     and
-    :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKeyWithSerialization`.
+    :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`.
     All other classes in this section represent the available choices for
-    encryption and have this interface. They are used with
-    :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKeyWithSerialization.private_bytes`.
+    encryption and have this interface.
 
 .. class:: BestAvailableEncryption(password)
 
