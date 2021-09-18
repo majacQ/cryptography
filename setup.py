@@ -251,9 +251,17 @@ setup(
         ],
         "docstest": [
             "doc8",
+  <<<<<<< 1.8.x
+            "pyenchant",
+            "readme_renderer >= 16.0",
+            "sphinx != 1.6.1",
+            "sphinx_rtd_theme",
+            "sphinxcontrib-spelling",
+  =======
             "pyenchant >= 1.6.11",
             "twine >= 1.12.0",
             "sphinxcontrib-spelling >= 4.0.1",
+  >>>>>>> 2.3.x
         ],
         "pep8test": [
             "flake8",

@@ -1,6 +1,8 @@
 Changelog
 =========
 
+  <<<<<<< 1.8.x
+  =======
   <<<<<<< 2.4.x
   <<<<<<< 2.9.x
 .. _v2-9-2:
@@ -503,23 +505,30 @@ Changelog
 
 .. _v1-8-2:
 
+  >>>>>>> 2.3.x
 1.8.2 - 2017-05-26
 ~~~~~~~~~~~~~~~~~~
 
 * Fixed a compilation bug affecting OpenSSL 1.1.0f.
 * Updated Windows and macOS wheels to be compiled against OpenSSL 1.1.0f.
 
+ v<<<<<<< 1.8.x
+  =======
 
 .. _v1-8-1:
 
+  >>>>>>> 2.3.x
 1.8.1 - 2017-03-10
 ~~~~~~~~~~~~~~~~~~
 
 * Fixed macOS wheels to properly link against 1.1.0 rather than 1.0.2.
 
+  <<<<<<< 1.8.x
+  =======
 
 .. _v1-8:
 
+  >>>>>>> 2.3.x
 1.8 - 2017-03-09
 ~~~~~~~~~~~~~~~~
 

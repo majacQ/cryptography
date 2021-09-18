@@ -14,6 +14,9 @@ __summary__ = "Test vectors for the cryptography package."
 
 __uri__ = "https://github.com/pyca/cryptography"
 
+  <<<<<<< 1.8.x
+__version__ = "1.8.2"
+  =======
   <<<<<<< 2.4.x
   <<<<<<< 2.9.x
 __version__ = "2.9.2"
@@ -22,6 +25,7 @@ __version__ = "2.4.2"
   >>>>>>> 2.4.x
   =======
 __version__ = "2.3.1"
+  >>>>>>> 2.3.x
   >>>>>>> 2.3.x
 
 __author__ = "The cryptography developers"
