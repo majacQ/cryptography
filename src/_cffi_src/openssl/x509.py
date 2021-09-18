@@ -83,6 +83,7 @@ X509 *X509_new(void);
 void X509_free(X509 *);
 X509 *X509_dup(X509 *);
 int X509_cmp(const X509 *, const X509 *);
+int X509_up_ref(X509 *);
 
 int X509_print_ex(BIO *, X509 *, unsigned long, unsigned long);
 
@@ -143,6 +144,7 @@ X509_EXTENSION *X509_REVOKED_delete_ext(X509_REVOKED *, int);
 int X509_REVOKED_set_revocationDate(X509_REVOKED *, ASN1_TIME *);
 
 X509_CRL *X509_CRL_new(void);
+X509_CRL *X509_CRL_dup(X509_CRL *);
 X509_CRL *d2i_X509_CRL_bio(BIO *, X509_CRL **);
 int X509_CRL_add0_revoked(X509_CRL *, X509_REVOKED *);
 int X509_CRL_add_ext(X509_CRL *, X509_EXTENSION *, int);
@@ -356,9 +358,9 @@ int X509_get_signature_nid(const X509 *x)
 
 #endif
 
-/* Added in 1.0.2beta3 but we need it in all versions now due to the great
+/* Added in 1.0.2 but we need it in all versions now due to the great
    opaquing. */
-#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_102BETA3
+#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_102
 /* from x509/x_x509.c */
 int i2d_re_X509_tbs(X509 *x, unsigned char **pp)
 {
@@ -375,12 +377,20 @@ int i2d_re_X509_tbs(X509 *x, unsigned char **pp)
    IMPLEMENT_ASN1_DUP_FUNCTION. The below is the equivalent so we have
    it available on all OpenSSLs. */
 X509_REVOKED *Cryptography_X509_REVOKED_dup(X509_REVOKED *rev) {
+#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_102
     return ASN1_item_dup(ASN1_ITEM_rptr(X509_REVOKED), rev);
+#else
+    return X509_REVOKED_dup(rev);
+#endif
 }
 
 /* Added in 1.1.0 but we need it in all versions now due to the great
    opaquing. */
 #if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110
+
+int X509_up_ref(X509 *x) {
+   return CRYPTO_add(&x->references, 1, CRYPTO_LOCK_X509);
+}
 
 const X509_ALGOR *X509_get0_tbs_sigalg(const X509 *x)
 {

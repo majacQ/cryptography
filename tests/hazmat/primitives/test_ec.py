@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function
 import binascii
 import itertools
 import os
-
 from binascii import hexlify
 
 import pytest
@@ -21,12 +20,13 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import (
     Prehashed, encode_dss_signature
 )
+from cryptography.utils import CryptographyDeprecationWarning
 
 from .fixtures_ec import EC_KEY_SECP384R1
 from ...doubles import DummyKeySerializationEncryption
 from ...utils import (
     load_fips_ecdsa_key_pair_vectors, load_fips_ecdsa_signing_vectors,
-    load_kasvs_ecdh_vectors, load_vectors_from_file,
+    load_kasvs_ecdh_vectors, load_nist_vectors, load_vectors_from_file,
     raises_unsupported_algorithm
 )
 
@@ -351,13 +351,13 @@ class TestECDSAVectors(object):
         pkey = key.public_key()
         assert pkey
 
-        signer = pytest.deprecated_call(key.signer, ec.ECDSA(hash_type()))
+        with pytest.warns(CryptographyDeprecationWarning):
+            signer = key.signer(ec.ECDSA(hash_type()))
         signer.update(b"YELLOW SUBMARINE")
         signature = signer.finalize()
 
-        verifier = pytest.deprecated_call(
-            pkey.verifier, signature, ec.ECDSA(hash_type())
-        )
+        with pytest.warns(CryptographyDeprecationWarning):
+            verifier = pkey.verifier(signature, ec.ECDSA(hash_type()))
         verifier.update(b"YELLOW SUBMARINE")
         verifier.verify()
 
@@ -514,12 +514,11 @@ class TestECDSAVectors(object):
 
         signature = encode_dss_signature(vector['r'], vector['s'])
 
-        verifier = key.verifier(
+        key.verify(
             signature,
+            vector['message'],
             ec.ECDSA(hash_type())
         )
-        verifier.update(vector['message'])
-        verifier.verify()
 
     @pytest.mark.parametrize(
         "vector",
@@ -543,17 +542,19 @@ class TestECDSAVectors(object):
 
         signature = encode_dss_signature(vector['r'], vector['s'])
 
-        verifier = key.verifier(
-            signature,
-            ec.ECDSA(hash_type())
-        )
-        verifier.update(vector['message'])
-
         if vector["fail"] is True:
             with pytest.raises(exceptions.InvalidSignature):
-                verifier.verify()
+                key.verify(
+                    signature,
+                    vector['message'],
+                    ec.ECDSA(hash_type())
+                )
         else:
-            verifier.verify()
+            key.verify(
+                signature,
+                vector['message'],
+                ec.ECDSA(hash_type())
+            )
 
     def test_sign(self, backend):
         _skip_curve_unsupported(backend, ec.SECP256R1())
@@ -1099,6 +1100,33 @@ class TestECDH(object):
             assert z != vector['Z']
         else:
             assert z == vector['Z']
+
+    @pytest.mark.parametrize(
+        "vector",
+        load_vectors_from_file(
+            os.path.join("asymmetric", "ECDH", "brainpool.txt"),
+            load_nist_vectors
+        )
+    )
+    def test_brainpool_kex(self, backend, vector):
+        curve = ec._CURVE_TYPES[vector['curve'].decode('ascii')]
+        _skip_exchange_algorithm_unsupported(backend, ec.ECDH(), curve)
+        key = ec.EllipticCurvePrivateNumbers(
+            int(vector['da'], 16),
+            ec.EllipticCurvePublicNumbers(
+                int(vector['x_qa'], 16), int(vector['y_qa'], 16), curve()
+            )
+        ).private_key(backend)
+        peer = ec.EllipticCurvePrivateNumbers(
+            int(vector['db'], 16),
+            ec.EllipticCurvePublicNumbers(
+                int(vector['x_qb'], 16), int(vector['y_qb'], 16), curve()
+            )
+        ).private_key(backend)
+        shared_secret = key.exchange(ec.ECDH(), peer.public_key())
+        assert shared_secret == binascii.unhexlify(vector["x_z"])
+        shared_secret_2 = peer.exchange(ec.ECDH(), key.public_key())
+        assert shared_secret_2 == binascii.unhexlify(vector["x_z"])
 
     def test_exchange_unsupported_algorithm(self, backend):
         _skip_curve_unsupported(backend, ec.SECP256R1())

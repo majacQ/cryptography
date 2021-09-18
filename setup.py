@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python.
 
 # This file is dual licensed under the terms of the Apache License, Version
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
@@ -14,10 +14,20 @@ from distutils.command.build import build
 
 import pkg_resources
 
+import setuptools
 from setuptools import find_packages, setup
 from setuptools.command.install import install
 from setuptools.command.test import test
 
+
+if (
+    pkg_resources.parse_version(setuptools.__version__) <
+    pkg_resources.parse_version("18.5")
+):
+    raise RuntimeError(
+        "cryptography requires setuptools 18.5 or newer, please upgrade to a "
+        "newer version of setuptools"
+    )
 
 base_dir = os.path.dirname(__file__)
 src_dir = os.path.join(base_dir, "src")
@@ -33,18 +43,7 @@ with open(os.path.join(src_dir, "cryptography", "__about__.py")) as f:
 
 VECTORS_DEPENDENCY = "cryptography_vectors=={0}".format(about['__version__'])
 
-requirements = [
-    "idna>=2.1",
-    "asn1crypto>=0.21.0",
-    "six>=1.4.1",
-]
 setup_requirements = []
-
-if sys.version_info < (3, 4):
-    requirements.append("enum34")
-
-if sys.version_info < (3, 3):
-    requirements.append("ipaddress")
 
 if platform.python_implementation() == "PyPy":
     if sys.pypy_version_info < (5, 3):
@@ -53,17 +52,19 @@ if platform.python_implementation() == "PyPy":
             "upgrade PyPy to use this library."
         )
 else:
-    requirements.append("cffi>=1.7")
-    setup_requirements.append("cffi>=1.7")
+    setup_requirements.append("cffi>=1.7,!=1.11.3")
 
 test_requirements = [
+  <<<<<<< 2.0.x
     "pytest>=2.9.0,!=3.2.0",
+  =======
+    "pytest>=3.2.1,!=3.3.0",
+  >>>>>>> 2.2.x
     "pretend",
     "iso8601",
     "pytz",
+    "hypothesis>=1.11.4",
 ]
-if sys.version_info[:2] > (2, 6):
-    test_requirements.append("hypothesis>=1.11.4")
 
 
 # If there's no vectors locally that probably means we are in a tarball and
@@ -272,7 +273,6 @@ setup(
         "Operating System :: Microsoft :: Windows",
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.6",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.4",
@@ -287,17 +287,28 @@ setup(
     packages=find_packages(where="src", exclude=["_cffi_src", "_cffi_src.*"]),
     include_package_data=True,
 
-    install_requires=requirements,
+    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
+
+    install_requires=[
+        "idna >= 2.1",
+        "asn1crypto >= 0.21.0",
+        "six >= 1.4.1",
+    ],
     tests_require=test_requirements,
     extras_require={
+        ":python_version < '3'": ["enum34", "ipaddress"],
+        ":platform_python_implementation != 'PyPy'": ["cffi >= 1.7"],
+
         "test": test_requirements,
+        "docs": [
+            "sphinx >= 1.6.5",
+            "sphinx_rtd_theme",
+        ],
         "docstest": [
             "doc8",
-            "pyenchant",
+            "pyenchant >= 1.6.11",
             "readme_renderer >= 16.0",
-            "sphinx != 1.6.1, != 1.6.2, != 1.6.3",
-            "sphinx_rtd_theme",
-            "sphinxcontrib-spelling",
+            "sphinxcontrib-spelling >= 4.0.1",
         ],
         "pep8test": [
             "flake8",

@@ -5,11 +5,11 @@ if (env.BRANCH_NAME == "master") {
 def configs = [
     [
         label: 'windows',
-        toxenvs: ['py26', 'py27', 'py34', 'py35', 'py36'],
+        toxenvs: ['py27', 'py34', 'py35', 'py36'],
     ],
     [
         label: 'windows64',
-        toxenvs: ['py26', 'py27', 'py34', 'py35', 'py36'],
+        toxenvs: ['py27', 'py34', 'py35', 'py36'],
     ],
     [
         label: 'freebsd11',
@@ -17,7 +17,7 @@ def configs = [
     ],
     [
         label: 'sierra',
-        toxenvs: ['py27'],
+        toxenvs: ['py27', 'py36'],
     ],
     [
         label: 'yosemite',
@@ -46,16 +46,21 @@ def configs = [
     [
         label: 'docker',
         imageName: 'pyca/cryptography-runner-buster',
-        toxenvs: ['py27', 'py35'],
+        toxenvs: ['py27', 'py36'],
     ],
     [
         label: 'docker',
         imageName: 'pyca/cryptography-runner-sid',
-        toxenvs: ['py27', 'py35'],
+        toxenvs: ['py27', 'py36'],
     ],
     [
         label: 'docker',
         imageName: 'pyca/cryptography-runner-jessie-libressl:2.4.5',
+        toxenvs: ['py27'],
+    ],
+    [
+        label: 'docker',
+        imageName: 'pyca/cryptography-runner-jessie-libressl:2.6.4',
         toxenvs: ['py27'],
     ],
     [
@@ -66,7 +71,7 @@ def configs = [
     [
         label: 'docker',
         imageName: 'pyca/cryptography-runner-ubuntu-rolling',
-        toxenvs: ['py27', 'py35', 'randomorder'],
+        toxenvs: ['py27', 'py36', 'randomorder'],
     ],
     [
         label: 'docker',
@@ -143,6 +148,52 @@ def downstreams = [
             inv test
         """
     ],
+    [
+        downstreamName: 'aws-encryption-sdk',
+        label: 'docker',
+        imageName: 'pyca/cryptography-runner-ubuntu-rolling',
+        script: """#!/bin/bash -xe
+            git clone --depth=1 https://github.com/awslabs/aws-encryption-sdk-python
+            cd aws-encryption-sdk-python
+            virtualenv .venv
+            source .venv/bin/activate
+            pip install ../cryptography
+            pip install pytest pytest-mock mock
+            pip install -e .
+            AWS_ENCRYPTION_SDK_PYTHON_INTEGRATION_TEST_AWS_KMS_KEY_ID="arn:aws:kms:us-west-2:nonsense" pytest -m local -l
+        """
+    ],
+    [
+        downstreamName: 'certbot',
+        label: 'docker',
+        imageName: 'pyca/cryptography-runner-ubuntu-rolling',
+        script: """#!/bin/bash -xe
+            git clone --depth=1 https://github.com/certbot/certbot
+            cd certbot
+            virtualenv .venv
+            source .venv/bin/activate
+            pip install ../cryptography
+            pip install pytest pytest-mock mock
+            pip install -e acme
+            pip install -e .
+            pytest certbot/tests
+            pytest acme
+        """
+    ],
+    [
+        downstreamName: 'certbot-josepy',
+        label: 'docker',
+        imageName: 'pyca/cryptography-runner-ubuntu-rolling',
+        script: """#!/bin/bash -xe
+            git clone --depth=1 https://github.com/certbot/josepy
+            cd josepy
+            virtualenv .venv
+            source .venv/bin/activate
+            pip install ../cryptography
+            pip install -e .[tests]
+            pytest src
+        """
+    ],
 ]
 
 def checkout_git(label) {
@@ -201,7 +252,6 @@ def build(toxenv, label, imageName, artifacts, artifactExcludes) {
                 withEnv(["LABEL=$label", "TOXENV=$toxenv", "IMAGE_NAME=$imageName"]) {
                     if (label.contains("windows")) {
                         def pythonPath = [
-                            py26: "C:\\Python26\\python.exe",
                             py27: "C:\\Python27\\python.exe",
                             py34: "C:\\Python34\\python.exe",
                             py35: "C:\\Python35\\python.exe",
@@ -241,9 +291,10 @@ def build(toxenv, label, imageName, artifacts, artifactExcludes) {
                             IF %ERRORLEVEL% NEQ 0 EXIT /B %ERRORLEVEL%
                             virtualenv .codecov
                             call .codecov/Scripts/activate
+                            REM this pin must be kept in sync with tox.ini
                             pip install coverage==4.3.4
                             pip install codecov
-                            codecov -e JOB_BASE_NAME,LABEL
+                            codecov -e JOB_BASE_NAME,LABEL,TOXENV
                         """
                     } else if (label.contains("sierra") || label.contains("yosemite")) {
                         ansiColor {
@@ -259,8 +310,9 @@ def build(toxenv, label, imageName, artifacts, artifactExcludes) {
                                     tox -r --  --color=yes
                                 virtualenv .venv
                                 source .venv/bin/activate
+                                # This pin must be kept in sync with tox.ini
                                 pip install coverage==4.3.4
-                                bash <(curl -s https://codecov.io/bash) -e JOB_BASE_NAME,LABEL
+                                bash <(curl -s https://codecov.io/bash) -e JOB_BASE_NAME,LABEL,TOXENV
                             """
                         }
                     } else {
@@ -278,8 +330,9 @@ def build(toxenv, label, imageName, artifacts, artifactExcludes) {
                                 fi
                                 virtualenv .venv
                                 source .venv/bin/activate
+                                # This pin must be kept in sync with tox.ini
                                 pip install coverage==4.3.4
-                                bash <(curl -s https://codecov.io/bash) -e JOB_BASE_NAME,LABEL
+                                bash <(curl -s https://codecov.io/bash) -e JOB_BASE_NAME,LABEL,TOXENV,IMAGE_NAME
                             """
                         }
                         if (artifacts) {
@@ -355,15 +408,12 @@ builders["setup.py-test"] = {
     }
 }
 
-parallel builders
-
-def downstreamBuilders = [:]
 for (downstream in downstreams) {
     def downstreamName = downstream["downstreamName"]
     def imageName = downstream["imageName"]
     def label = downstream["label"]
     def script = downstream["script"]
-    downstreamBuilders[downstreamName] = {
+    builders[downstreamName] = {
         node(label) {
             docker.image(imageName).inside {
                 try {
@@ -379,6 +429,5 @@ for (downstream in downstreams) {
     }
 }
 
-stage("Downstreams") {
-    parallel downstreamBuilders
-}
+parallel builders
+

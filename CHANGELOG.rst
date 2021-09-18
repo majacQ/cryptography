@@ -1,18 +1,158 @@
 Changelog
 =========
 
+  <<<<<<< 2.0.x
+  =======
+.. _v2-2-2:
+
+2.2.2 - 2018-03-27
+~~~~~~~~~~~~~~~~~~
+
+* Updated Windows, macOS, and ``manylinux1`` wheels to be compiled with
+  OpenSSL 1.1.0h.
+
+.. _v2-2-1:
+
+2.2.1 - 2018-03-20
+~~~~~~~~~~~~~~~~~~
+
+* Reverted a change to ``GeneralNames`` which prohibited having zero elements,
+  due to breakages.
+* Fixed a bug in
+  :func:`~cryptography.hazmat.primitives.keywrap.aes_key_unwrap_with_padding`
+  that caused it to raise ``InvalidUnwrap`` when key length modulo 8 was
+  zero.
+
+.. _v2-2:
+
+2.2 - 2018-03-19
+~~~~~~~~~~~~~~~~
+
+* **BACKWARDS INCOMPATIBLE:** Support for Python 2.6 has been dropped.
+* Resolved a bug in ``HKDF`` that incorrectly constrained output size.
+* Added :class:`~cryptography.hazmat.primitives.asymmetric.ec.BrainpoolP256R1`,
+  :class:`~cryptography.hazmat.primitives.asymmetric.ec.BrainpoolP384R1`, and
+  :class:`~cryptography.hazmat.primitives.asymmetric.ec.BrainpoolP512R1` to
+  support inter-operating with systems like German smart meters.
+* Added token rotation support to :doc:`Fernet </fernet>` with
+  :meth:`~cryptography.fernet.MultiFernet.rotate`.
+* Fixed a memory leak in
+  :func:`~cryptography.hazmat.primitives.asymmetric.ec.derive_private_key`.
+* Added support for AES key wrapping with padding via
+  :func:`~cryptography.hazmat.primitives.keywrap.aes_key_wrap_with_padding`
+  and
+  :func:`~cryptography.hazmat.primitives.keywrap.aes_key_unwrap_with_padding`
+  .
+* Allow loading DSA keys with 224 bit ``q``.
+
+.. _v2-1-4:
+
+2.1.4 - 2017-11-29
+~~~~~~~~~~~~~~~~~~
+
+* Added ``X509_up_ref`` for an upcoming ``pyOpenSSL`` release.
+
+.. _v2-1-3:
+
+2.1.3 - 2017-11-02
+~~~~~~~~~~~~~~~~~~
+
+* Updated Windows, macOS, and ``manylinux1`` wheels to be compiled with
+  OpenSSL 1.1.0g.
+
+.. _v2-1-2:
+
+2.1.2 - 2017-10-24
+~~~~~~~~~~~~~~~~~~
+
+* Corrected a bug with the ``manylinux1`` wheels where OpenSSL's stack was
+  marked executable.
+
+.. _v2-1-1:
+
+2.1.1 - 2017-10-12
+~~~~~~~~~~~~~~~~~~
+
+* Fixed support for install with the system ``pip`` on Ubuntu 16.04.
+
+.. _v2-1:
+
+2.1 - 2017-10-11
+~~~~~~~~~~~~~~~~
+
+* **FINAL DEPRECATION** Python 2.6 support is deprecated, and will be removed
+  in the next release of ``cryptography``.
+* **BACKWARDS INCOMPATIBLE:** ``Whirlpool``, ``RIPEMD160``, and
+  ``UnsupportedExtension`` have been removed in accordance with our
+  :doc:`/api-stability` policy.
+* **BACKWARDS INCOMPATIBLE:**
+  :attr:`DNSName.value <cryptography.x509.DNSName.value>`,
+  :attr:`RFC822Name.value <cryptography.x509.RFC822Name.value>`, and
+  :attr:`UniformResourceIdentifier.value
+  <cryptography.x509.UniformResourceIdentifier.value>`
+  will now return an :term:`A-label` string when parsing a certificate
+  containing an internationalized domain name (IDN) or if the caller passed
+  a :term:`U-label` to the constructor. See below for additional deprecations
+  related to this change.
+* Installing ``cryptography`` now requires ``pip`` 6 or newer.
+* Deprecated passing :term:`U-label` strings to the
+  :class:`~cryptography.x509.DNSName`,
+  :class:`~cryptography.x509.UniformResourceIdentifier`, and
+  :class:`~cryptography.x509.RFC822Name` constructors. Instead, users should
+  pass values as :term:`A-label` strings with ``idna`` encoding if necessary.
+  This change will not affect anyone who is not processing internationalized
+  domains.
+* Added support for
+  :class:`~cryptography.hazmat.primitives.ciphers.algorithms.ChaCha20`. In
+  most cases users should choose
+  :class:`~cryptography.hazmat.primitives.ciphers.aead.ChaCha20Poly1305`
+  rather than using this unauthenticated form.
+* Added :meth:`~cryptography.x509.CertificateRevocationList.is_signature_valid`
+  to :class:`~cryptography.x509.CertificateRevocationList`.
+* Support :class:`~cryptography.hazmat.primitives.hashes.BLAKE2b` and
+  :class:`~cryptography.hazmat.primitives.hashes.BLAKE2s` with
+  :class:`~cryptography.hazmat.primitives.hmac.HMAC`.
+* Added support for
+  :class:`~cryptography.hazmat.primitives.ciphers.modes.XTS` mode for
+  AES.
+* Added support for using labels with
+  :class:`~cryptography.hazmat.primitives.asymmetric.padding.OAEP` when using
+  OpenSSL 1.0.2 or greater.
+* Improved compatibility with NSS when issuing certificates from an issuer
+  that has a subject with non-``UTF8String`` string types.
+* Add support for the :class:`~cryptography.x509.DeltaCRLIndicator` extension.
+* Add support for the :class:`~cryptography.x509.TLSFeature`
+  extension. This is commonly used for enabling ``OCSP Must-Staple`` in
+  certificates.
+* Add support for the :class:`~cryptography.x509.FreshestCRL` extension.
+
+.. _v2-0-3:
+
+  >>>>>>> 2.2.x
 2.0.3 - 2017-08-03
 ~~~~~~~~~~~~~~~~~~
 
 * Fixed an issue with weak linking symbols when compiling on macOS
   versions older than 10.12.
 
+  <<<<<<< 2.0.x
+  =======
+
+.. _v2-0-2:
+
+  >>>>>>> 2.2.x
 2.0.2 - 2017-07-27
 ~~~~~~~~~~~~~~~~~~
 
 * Marked all symbols as hidden in the ``manylinux1`` wheel to avoid a
   bug with symbol resolution in certain scenarios.
 
+ we<<<<<<< 2.0.x
+  =======
+
+.. _v2-0-1:
+
+  >>>>>>> 2.2.x
 2.0.1 - 2017-07-26
 ~~~~~~~~~~~~~~~~~~
 
@@ -23,6 +163,12 @@ Changelog
   OpenSSL independently.
 * Fixed the stack level for the ``signer`` and ``verifier`` warnings.
 
+  <<<<<<< 2.0.x
+  =======
+
+.. _v2-0:
+
+  >>>>>>> 2.2.x
 2.0 - 2017-07-17
 ~~~~~~~~~~~~~~~~
 
@@ -68,6 +214,9 @@ Changelog
   performance improvement for programs accessing the ``extensions`` attribute
   multiple times.
 
+
+.. _v1-9:
+
 1.9 - 2017-05-29
 ~~~~~~~~~~~~~~~~
 
@@ -101,16 +250,25 @@ Changelog
 * MultiBackend has been removed.
 * ``Whirlpool`` and ``RIPEMD160`` have been deprecated.
 
+
+.. _v1-8-2:
+
 1.8.2 - 2017-05-26
 ~~~~~~~~~~~~~~~~~~
 
 * Fixed a compilation bug affecting OpenSSL 1.1.0f.
 * Updated Windows and macOS wheels to be compiled against OpenSSL 1.1.0f.
 
+
+.. _v1-8-1:
+
 1.8.1 - 2017-03-10
 ~~~~~~~~~~~~~~~~~~
 
 * Fixed macOS wheels to properly link against 1.1.0 rather than 1.0.2.
+
+
+.. _v1-8:
 
 1.8 - 2017-03-09
 ~~~~~~~~~~~~~~~~
@@ -141,16 +299,25 @@ Changelog
   was documented but not enforced.
 * Added support for subgroup order in :doc:`/hazmat/primitives/asymmetric/dh`.
 
+
+.. _v1-7-2:
+
 1.7.2 - 2017-01-27
 ~~~~~~~~~~~~~~~~~~
 
 * Updated Windows and macOS wheels to be compiled against OpenSSL 1.0.2k.
+
+
+.. _v1-7-1:
 
 1.7.1 - 2016-12-13
 ~~~~~~~~~~~~~~~~~~
 
 * Fixed a regression in ``int_from_bytes`` where it failed to accept
   ``bytearray``.
+
+
+.. _v1-7:
 
 1.7 - 2016-12-12
 ~~~~~~~~~~~~~~~~
@@ -163,6 +330,9 @@ Changelog
   with embedded Python and other edge cases. More information about this change
   can be found in the
   `pull request <https://github.com/pyca/cryptography/pull/3229>`_.
+
+
+.. _v1-6:
 
 1.6 - 2016-11-22
 ~~~~~~~~~~~~~~~~
@@ -212,6 +382,9 @@ Changelog
   :class:`~cryptography.hazmat.primitives.asymmetric.utils.Prehashed`
   digests.
 
+
+.. _v1-5-3:
+
 1.5.3 - 2016-11-05
 ~~~~~~~~~~~~~~~~~~
 
@@ -219,10 +392,16 @@ Changelog
   byte-string if used with a ``length`` less than ``algorithm.digest_size``.
   Credit to **Markus Döring** for reporting the issue. *CVE-2016-9243*
 
+
+.. _v1-5-2:
+
 1.5.2 - 2016-09-26
 ~~~~~~~~~~~~~~~~~~
 
 * Updated Windows and OS X wheels to be compiled against OpenSSL 1.0.2j.
+
+
+.. _v1-5-1:
 
 1.5.1 - 2016-09-22
 ~~~~~~~~~~~~~~~~~~
@@ -234,6 +413,9 @@ Changelog
 * Fixed an issue preventing ``cryptography`` from compiling against
   OpenSSL 1.0.2i.
 
+
+
+.. _v1-5:
 
 1.5 - 2016-08-26
 ~~~~~~~~~~~~~~~~
@@ -259,6 +441,9 @@ Changelog
 * ``cryptography`` now supports OpenSSL 1.1.0 as a compilation target.
 
 
+
+.. _v1-4:
+
 1.4 - 2016-06-04
 ~~~~~~~~~~~~~~~~
 
@@ -279,6 +464,9 @@ Changelog
   :attr:`~cryptography.x509.Certificate.serial_number`.
 
 
+
+.. _v1-3-4:
+
 1.3.4 - 2016-06-03
 ~~~~~~~~~~~~~~~~~~
 
@@ -286,11 +474,17 @@ Changelog
   ``pyOpenSSL`` release.
 
 
+
+.. _v1-3-3:
+
 1.3.3 - 2016-06-02
 ~~~~~~~~~~~~~~~~~~
 
 * Added two new OpenSSL functions to the bindings to support an upcoming
   ``pyOpenSSL`` release.
+
+
+.. _v1-3-2:
 
 1.3.2 - 2016-05-04
 ~~~~~~~~~~~~~~~~~~
@@ -299,11 +493,17 @@ Changelog
 * Fixed an issue preventing ``cryptography`` from compiling against
   LibreSSL 2.3.x.
 
+
+.. _v1-3-1:
+
 1.3.1 - 2016-03-21
 ~~~~~~~~~~~~~~~~~~
 
 * Fixed a bug that caused an ``AttributeError`` when using ``mock`` to patch
   some ``cryptography`` modules.
+
+
+.. _v1-3:
 
 1.3 - 2016-03-18
 ~~~~~~~~~~~~~~~~
@@ -323,21 +523,33 @@ Changelog
 * Added
   :meth:`~cryptography.x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier`.
 
+
+.. _v1-2-3:
+
 1.2.3 - 2016-03-01
 ~~~~~~~~~~~~~~~~~~
 
 * Updated Windows and OS X wheels to be compiled against OpenSSL 1.0.2g.
+
+
+.. _v1-2-2:
 
 1.2.2 - 2016-01-29
 ~~~~~~~~~~~~~~~~~~
 
 * Updated Windows and OS X wheels to be compiled against OpenSSL 1.0.2f.
 
+
+.. _v1-2-1:
+
 1.2.1 - 2016-01-08
 ~~~~~~~~~~~~~~~~~~
 
 * Reverts a change to an OpenSSL ``EVP_PKEY`` object that caused errors with
   ``pyOpenSSL``.
+
+
+.. _v1-2:
 
 1.2 - 2016-01-08
 ~~~~~~~~~~~~~~~~
@@ -388,6 +600,9 @@ Changelog
 * Unrecognized non-critical X.509 extensions are now parsed into an
   :class:`~cryptography.x509.UnrecognizedExtension` object.
 
+
+.. _v1-1-2:
+
 1.1.2 - 2015-12-10
 ~~~~~~~~~~~~~~~~~~
 
@@ -397,6 +612,9 @@ Changelog
   occurred with some OpenSSL installations.
 * Updated Windows and OS X wheels to be compiled against OpenSSL 1.0.2e.
 
+
+.. _v1-1-1:
+
 1.1.1 - 2015-11-19
 ~~~~~~~~~~~~~~~~~~
 
@@ -405,6 +623,9 @@ Changelog
 * Resolved an issue where, depending on the method of installation and
   which Python interpreter they were using, users on El Capitan (OS X 10.11)
   may have seen an ``InternalError`` on import.
+
+
+.. _v1-1:
 
 1.1 - 2015-10-28
 ~~~~~~~~~~~~~~~~
@@ -430,6 +651,9 @@ Changelog
 * ``countryName`` is now encoded as a ``PrintableString`` when creating subject
   and issuer distinguished names with the Certificate and CSR builder classes.
 
+
+.. _v1-0-2:
+
 1.0.2 - 2015-09-27
 ~~~~~~~~~~~~~~~~~~
 * **SECURITY ISSUE**: The OpenSSL backend prior to 1.0.2 made extensive use
@@ -440,6 +664,9 @@ Changelog
   checks from the OpenSSL backend have been converted from ``assert``
   to a true function call. Credit **Emilia Käsper (Google Security Team)**
   for the report.
+
+
+.. _v1-0-1:
 
 1.0.1 - 2015-09-05
 ~~~~~~~~~~~~~~~~~~
@@ -453,6 +680,9 @@ Changelog
 * Several new OpenSSL bindings have been added to support a future pyOpenSSL
   release.
 * Raise an error during install on PyPy < 2.6. 1.0+ requires PyPy 2.6+.
+
+
+.. _v1-0:
 
 1.0 - 2015-08-12
 ~~~~~~~~~~~~~~~~
@@ -514,15 +744,24 @@ Changelog
   :func:`~cryptography.hazmat.primitives.asymmetric.utils.decode_dss_signature`.
 
 
+
+.. _v0-9-3:
+
 0.9.3 - 2015-07-09
 ~~~~~~~~~~~~~~~~~~
 
 * Updated Windows wheels to be compiled against OpenSSL 1.0.2d.
 
+
+.. _v0-9-2:
+
 0.9.2 - 2015-07-04
 ~~~~~~~~~~~~~~~~~~
 
 * Updated Windows wheels to be compiled against OpenSSL 1.0.2c.
+
+
+.. _v0-9-1:
 
 0.9.1 - 2015-06-06
 ~~~~~~~~~~~~~~~~~~
@@ -530,6 +769,9 @@ Changelog
 * **SECURITY ISSUE**: Fixed a double free in the OpenSSL backend when using DSA
   to verify signatures. Note that this only affects PyPy 2.6.0 and (presently
   unreleased) CFFI versions greater than 1.1.0.
+
+
+.. _v0-9:
 
 0.9 - 2015-05-13
 ~~~~~~~~~~~~~~~~
@@ -582,16 +824,25 @@ Changelog
   silently ignored. Read the :doc:`X.509 documentation</x509/index>` for more
   information.
 
+
+.. _v0-8-2:
+
 0.8.2 - 2015-04-10
 ~~~~~~~~~~~~~~~~~~
 
 * Fixed a race condition when initializing the OpenSSL or CommonCrypto backends
   in a multi-threaded scenario.
 
+
+.. _v0-8-1:
+
 0.8.1 - 2015-03-20
 ~~~~~~~~~~~~~~~~~~
 
 * Updated Windows wheels to be compiled against OpenSSL 1.0.2a.
+
+
+.. _v0-8:
 
 0.8 - 2015-03-08
 ~~~~~~~~~~~~~~~~
@@ -706,6 +957,9 @@ Changelog
   ``cryptography.hazmat.primitives.interfaces`` to
   :mod:`~cryptography.hazmat.primitives.asymmetric.rsa`.
 
+
+.. _v0-7-2:
+
 0.7.2 - 2015-01-16
 ~~~~~~~~~~~~~~~~~~
 
@@ -715,11 +969,17 @@ Changelog
 * Added a new function to the OpenSSL bindings to support additional
   functionality in pyOpenSSL.
 
+
+.. _v0-7-1:
+
 0.7.1 - 2014-12-28
 ~~~~~~~~~~~~~~~~~~
 
 * Fixed an issue preventing compilation on platforms where ``OPENSSL_NO_SSL3``
   was defined.
+
+
+.. _v0-7:
 
 0.7 - 2014-12-17
 ~~~~~~~~~~~~~~~~
@@ -742,6 +1002,9 @@ Changelog
 * Added initial support for X.509 certificate parsing. See the
   :doc:`X.509 documentation</x509/index>` for more information.
 
+
+.. _v0-6-1:
+
 0.6.1 - 2014-10-15
 ~~~~~~~~~~~~~~~~~~
 
@@ -752,6 +1015,9 @@ Changelog
 * Implemented DSA hash truncation support (per FIPS 186-3) in the OpenSSL
   backend. This works around an issue in 1.0.0, 1.0.0a, and 1.0.0b where
   truncation was not implemented.
+
+
+.. _v0-6:
 
 0.6 - 2014-09-29
 ~~~~~~~~~~~~~~~~
@@ -786,6 +1052,9 @@ Changelog
 
 * Support loading EC private keys from PEM.
 
+
+.. _v0-5-4:
+
 0.5.4 - 2014-08-20
 ~~~~~~~~~~~~~~~~~~
 
@@ -793,10 +1062,16 @@ Changelog
   functionality in pyOpenSSL.
 * Fixed a redefined constant causing compilation failure with Solaris 11.2.
 
+
+.. _v0-5-3:
+
 0.5.3 - 2014-08-06
 ~~~~~~~~~~~~~~~~~~
 
 * Updated Windows wheels to be compiled against OpenSSL 1.0.1i.
+
+
+.. _v0-5-2:
 
 0.5.2 - 2014-07-09
 ~~~~~~~~~~~~~~~~~~
@@ -804,10 +1079,16 @@ Changelog
 * Add ``TraditionalOpenSSLSerializationBackend`` support to ``multibackend``.
 * Fix compilation error on OS X 10.8 (Mountain Lion).
 
+
+.. _v0-5-1:
+
 0.5.1 - 2014-07-07
 ~~~~~~~~~~~~~~~~~~
 
 * Add ``PKCS8SerializationBackend`` support to ``multibackend``.
+
+
+.. _v0-5:
 
 0.5 - 2014-07-07
 ~~~~~~~~~~~~~~~~
@@ -862,6 +1143,9 @@ Changelog
 * Deprecated ``create_dsa_signature_ctx`` and ``create_dsa_verification_ctx``
   on :class:`~cryptography.hazmat.backends.interfaces.DSABackend`.
 
+
+.. _v0-4:
+
 0.4 - 2014-05-03
 ~~~~~~~~~~~~~~~~
 
@@ -882,6 +1166,9 @@ Changelog
   and verification support to
   :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`.
 
+
+.. _v0-3:
+
 0.3 - 2014-03-27
 ~~~~~~~~~~~~~~~~
 
@@ -895,17 +1182,26 @@ Changelog
   :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`.
 * Moved test vectors to the new ``cryptography_vectors`` package.
 
+
+.. _v0-2-2:
+
 0.2.2 - 2014-03-03
 ~~~~~~~~~~~~~~~~~~
 
 * Removed a constant definition that was causing compilation problems with
   specific versions of OpenSSL.
 
+
+.. _v0-2-1:
+
 0.2.1 - 2014-02-22
 ~~~~~~~~~~~~~~~~~~
 
 * Fix a bug where importing cryptography from multiple paths could cause
   initialization to fail.
+
+
+.. _v0-2:
 
 0.2 - 2014-02-20
 ~~~~~~~~~~~~~~~~
@@ -925,6 +1221,9 @@ Changelog
   random engine.
 * Added :class:`~cryptography.hazmat.primitives.ciphers.algorithms.CAST5`
   (CAST-128) support.
+
+
+.. _v0-1:
 
 0.1 - 2014-01-08
 ~~~~~~~~~~~~~~~~

@@ -19,9 +19,9 @@ mathematical properties`_.
     .. versionadded:: 0.5
 
     Generates a new RSA private key using the provided ``backend``.
-    ``key_size`` describes how many bits long the key should be, larger keys
-    provide more security, currently ``1024`` and below are considered
-    breakable, and ``2048`` or ``4096`` are reasonable default key sizes for
+    ``key_size`` describes how many :term:`bits` long the key should be. Larger
+    keys provide more security; currently ``1024`` and below are considered
+    breakable while ``2048`` or ``4096`` are reasonable default key sizes for
     new keys. The ``public_exponent`` indicates what one mathematical property
     of the key generation will be. Unless you have a specific reason to do
     otherwise, you should always `use 65537`_.
@@ -40,7 +40,7 @@ mathematical properties`_.
         Usually one of the small Fermat primes 3, 5, 17, 257, 65537. If in
         doubt you should `use 65537`_.
 
-    :param int key_size: The length of the modulus in bits. For keys
+    :param int key_size: The length of the modulus in :term:`bits`. For keys
         generated in 2015 it is strongly recommended to be
         `at least 2048`_ (See page 41). It must not be less than 512.
         Some backends may have additional limitations.
@@ -64,6 +64,7 @@ markers), you can load it:
 
 .. code-block:: pycon
 
+    >>> from cryptography.hazmat.backends import default_backend
     >>> from cryptography.hazmat.primitives import serialization
 
     >>> with open("path/to/key.pem", "rb") as key_file:
@@ -246,8 +247,8 @@ options. Here's an example using a secure padding and hash function:
     >>> ciphertext = public_key.encrypt(
     ...     message,
     ...     padding.OAEP(
-    ...         mgf=padding.MGF1(algorithm=hashes.SHA1()),
-    ...         algorithm=hashes.SHA1(),
+    ...         mgf=padding.MGF1(algorithm=hashes.SHA256()),
+    ...         algorithm=hashes.SHA256(),
     ...         label=None
     ...     )
     ... )
@@ -269,8 +270,8 @@ Once you have an encrypted message, it can be decrypted using the private key:
     >>> plaintext = private_key.decrypt(
     ...     ciphertext,
     ...     padding.OAEP(
-    ...         mgf=padding.MGF1(algorithm=hashes.SHA1()),
-    ...         algorithm=hashes.SHA1(),
+    ...         mgf=padding.MGF1(algorithm=hashes.SHA256()),
+    ...         algorithm=hashes.SHA256(),
     ...         label=None
     ...     )
     ... )
@@ -702,7 +703,7 @@ Key interfaces
         :param algorithm: An instance of
             :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm` or
             :class:`~cryptography.hazmat.primitives.asymmetric.utils.Prehashed`
-            if the ``data`` you want to sign has already been hashed.
+            if the ``data`` you want to verify has already been hashed.
 
         :raises cryptography.exceptions.InvalidSignature: If the signature does
             not validate.

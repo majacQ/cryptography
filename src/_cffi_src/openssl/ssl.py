@@ -27,6 +27,8 @@ static const long Cryptography_HAS_SSL_CTX_SET_CLIENT_CERT_ENGINE;
 static const long Cryptography_HAS_SSL_CTX_CLEAR_OPTIONS;
 static const long Cryptography_HAS_DTLS;
 static const long Cryptography_HAS_GENERIC_DTLS_METHOD;
+static const long Cryptography_HAS_SIGALGS;
+static const long Cryptography_HAS_PSK;
 
 /* Internally invented symbol to tell us if SNI is supported */
 static const long Cryptography_HAS_TLSEXT_HOSTNAME;
@@ -64,6 +66,8 @@ static const long SSL_OP_NO_SSLv3;
 static const long SSL_OP_NO_TLSv1;
 static const long SSL_OP_NO_TLSv1_1;
 static const long SSL_OP_NO_TLSv1_2;
+static const long SSL_OP_NO_DTLSv1;
+static const long SSL_OP_NO_DTLSv1_2;
 static const long SSL_OP_NO_COMPRESSION;
 static const long SSL_OP_SINGLE_DH_USE;
 static const long SSL_OP_EPHEMERAL_RSA;
@@ -175,6 +179,7 @@ int SSL_pending(const SSL *);
 int SSL_write(SSL *, const void *, int);
 int SSL_read(SSL *, void *, int);
 int SSL_peek(SSL *, void *, int);
+X509 *SSL_get_certificate(const SSL *);
 X509 *SSL_get_peer_certificate(const SSL *);
 int SSL_get_ex_data_X509_STORE_CTX_idx(void);
 
@@ -185,6 +190,9 @@ int SSL_use_PrivateKey(SSL *, EVP_PKEY *);
 int SSL_use_PrivateKey_ASN1(int, SSL *, const unsigned char *, long);
 int SSL_use_PrivateKey_file(SSL *, const char *, int);
 int SSL_check_private_key(const SSL *);
+
+int SSL_get_sigalgs(SSL *, int, int *, int *, int *, unsigned char *,
+                    unsigned char *);
 
 Cryptography_STACK_OF_X509 *SSL_get_peer_cert_chain(const SSL *);
 Cryptography_STACK_OF_X509_NAME *SSL_get_client_CA_list(const SSL *);
@@ -219,8 +227,42 @@ int SSL_CTX_use_PrivateKey_ASN1(int, SSL_CTX *, const unsigned char *, long);
 int SSL_CTX_use_PrivateKey_file(SSL_CTX *, const char *, int);
 int SSL_CTX_check_private_key(const SSL_CTX *);
 void SSL_CTX_set_cert_verify_callback(SSL_CTX *,
-                                      int (*)(X509_STORE_CTX *,void *),
+                                      int (*)(X509_STORE_CTX *, void *),
                                       void *);
+
+void SSL_CTX_set_cookie_generate_cb(SSL_CTX *,
+                                    int (*)(
+                                        SSL *,
+                                        unsigned char *,
+                                        unsigned int *
+                                    ));
+void SSL_CTX_set_cookie_verify_cb(SSL_CTX *,
+                                  int (*)(
+                                      SSL *,
+                                      const unsigned char *,
+                                      unsigned int
+                                  ));
+long SSL_CTX_get_read_ahead(SSL_CTX *);
+long SSL_CTX_set_read_ahead(SSL_CTX *, long);
+
+int SSL_CTX_use_psk_identity_hint(SSL_CTX *, const char *);
+void SSL_CTX_set_psk_server_callback(SSL_CTX *,
+                                     unsigned int (*)(
+                                         SSL *,
+                                         const char *,
+                                         unsigned char *,
+                                         int
+                                     ));
+void SSL_CTX_set_psk_client_callback(SSL_CTX *,
+                                     unsigned int (*)(
+                                         SSL *,
+                                         const char *,
+                                         char *,
+                                         unsigned int,
+                                         unsigned char *,
+                                         unsigned int
+                                     ));
+
 int SSL_CTX_set_session_id_context(SSL_CTX *, const unsigned char *,
                                    unsigned int);
 
@@ -232,6 +274,8 @@ void SSL_CTX_set_client_CA_list(SSL_CTX *, Cryptography_STACK_OF_X509_NAME *);
 
 void SSL_CTX_set_info_callback(SSL_CTX *, void (*)(const SSL *, int, int));
 void (*SSL_CTX_get_info_callback(SSL_CTX *))(const SSL *, int, int);
+
+long SSL_CTX_set1_sigalgs_list(SSL_CTX *, const char *);
 
 /*  SSL_SESSION */
 void SSL_SESSION_free(SSL_SESSION *);
@@ -362,6 +406,9 @@ long SSL_set_tlsext_status_type(SSL *, long);
 long SSL_CTX_set_tlsext_status_cb(SSL_CTX *, int(*)(SSL *, void *));
 long SSL_CTX_set_tlsext_status_arg(SSL_CTX *, void *);
 
+int SSL_CTX_set_tlsext_use_srtp(SSL_CTX *, const char *);
+int SSL_set_tlsext_use_srtp(SSL *, const char *);
+
 long SSL_session_reused(SSL *);
 
 void SSL_CTX_set_next_protos_advertised_cb(SSL_CTX *,
@@ -420,6 +467,8 @@ size_t SSL_SESSION_get_master_key(const SSL_SESSION *, unsigned char *,
                                   size_t);
 size_t SSL_get_client_random(const SSL *, unsigned char *, size_t);
 size_t SSL_get_server_random(const SSL *, unsigned char *, size_t);
+int SSL_export_keying_material(SSL *, unsigned char *, size_t, const char *,
+                               size_t, const unsigned char *, size_t, int);
 
 long SSL_CTX_sess_number(SSL_CTX *);
 long SSL_CTX_sess_connect(SSL_CTX *);
@@ -437,6 +486,8 @@ long SSL_CTX_sess_cache_full(SSL_CTX *);
 /* DTLS support */
 long Cryptography_DTLSv1_get_timeout(SSL *, time_t *, long *);
 long DTLSv1_handle_timeout(SSL *);
+long DTLS_set_link_mtu(SSL *, long);
+long DTLS_get_link_min_mtu(SSL *);
 """
 
 CUSTOMIZATIONS = """
@@ -598,6 +649,10 @@ static const long Cryptography_HAS_GENERIC_DTLS_METHOD = 0;
 const SSL_METHOD *(*DTLS_method)(void) = NULL;
 const SSL_METHOD *(*DTLS_server_method)(void) = NULL;
 const SSL_METHOD *(*DTLS_client_method)(void) = NULL;
+static const long SSL_OP_NO_DTLSv1 = NULL;
+static const long SSL_OP_NO_DTLSv1_2 = NULL;
+long *(*DTLS_set_link_mtu)(SSL *, long) = NULL;
+long *(*DTLS_get_link_min_mtu)(SSL *) = NULL;
 #else
 static const long Cryptography_HAS_GENERIC_DTLS_METHOD = 1;
 #endif
@@ -621,4 +676,36 @@ long Cryptography_DTLSv1_get_timeout(SSL *ssl, time_t *ptv_sec,
 
     return r;
 }
+
+#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_102
+static const long Cryptography_HAS_SIGALGS = 0;
+const int (*SSL_get_sigalgs)(SSL *, int, int *, int *, int *, unsigned char *,
+                             unsigned char *) = NULL;
+const long (*SSL_CTX_set1_sigalgs_list)(SSL_CTX *, const char *) = NULL;
+#else
+static const long Cryptography_HAS_SIGALGS = 1;
+#endif
+
+#if CRYPTOGRAPHY_IS_LIBRESSL
+static const long Cryptography_HAS_PSK = 0;
+int (*SSL_CTX_use_psk_identity_hint)(SSL_CTX *, const char *) = NULL;
+void (*SSL_CTX_set_psk_server_callback)(SSL_CTX *,
+                                        unsigned int (*)(
+                                            SSL *,
+                                            const char *,
+                                            unsigned char *,
+                                            int
+                                        )) = NULL;
+void (*SSL_CTX_set_psk_client_callback)(SSL_CTX *,
+                                        unsigned int (*)(
+                                            SSL *,
+                                            const char *,
+                                            char *,
+                                            unsigned int,
+                                            unsigned char *,
+                                            unsigned int
+                                        )) = NULL;
+#else
+static const long Cryptography_HAS_PSK = 1;
+#endif
 """

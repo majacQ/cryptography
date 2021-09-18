@@ -10,20 +10,16 @@ You can install ``cryptography`` with ``pip``:
 Supported platforms
 -------------------
 
-Currently we test ``cryptography`` on Python 2.6, 2.7, 3.4, 3.5, 3.6, and
+Currently we test ``cryptography`` on Python 2.7, 3.4, 3.5, 3.6, and
 PyPy 5.3+ on these operating systems.
 
 * x86-64 CentOS 7.x
 * x86-64 FreeBSD 11
-* macOS 10.12 Sierra, 10.11 El Capitan, 10.10 Yosemite, 10.9 Mavericks
+* macOS 10.12 Sierra, 10.11 El Capitan
 * x86-64 Ubuntu 14.04, 16.04, and rolling
 * x86-64 Debian Wheezy (7.x), Jessie (8.x), Stretch (9.x), and Sid (unstable)
 * x86-64 Alpine (latest)
 * 32-bit and 64-bit Python on 64-bit Windows Server 2012
-
-.. warning::
-    Python 2.6 is no longer supported by the Python core team. A future version
-    of cryptography will drop support for this version.
 
 We test compiling with ``clang`` as well as ``gcc`` and use the following
 OpenSSL releases:
@@ -49,7 +45,7 @@ just run
 If you prefer to compile it yourself you'll need to have OpenSSL installed.
 You can compile OpenSSL yourself as well or use the binaries we build for our
 release infrastructure (`openssl-release`_). Be sure to download the proper
-version for your architecture and Python (2010 works for Python 2.6, 2.7, 3.3,
+version for your architecture and Python (2010 works for Python 2.7, 3.3,
 and 3.4 while 2015 is required for 3.5 and above). Wherever you place your copy
 of OpenSSL you'll need to set the ``LIB`` and ``INCLUDE`` environment variables
 to include the proper locations. For example:
@@ -277,33 +273,10 @@ You can also build cryptography statically:
 If you need to rebuild ``cryptography`` for any reason be sure to clear the
 local `wheel cache`_.
 
-Building cryptography with conda
---------------------------------
-
-Because of a bug in conda, attempting to install cryptography out of the box
-will result in an error. This can be resolved by setting the library path
-environment variable for your platform.
-
-On macOS:
-
-.. code-block:: console
-
-    $ env DYLD_LIBRARY_PATH="$HOME/anaconda/lib" pip install cryptography
-
-and on Linux:
-
-.. code-block:: console
-
-    $ env LD_LIBRARY_PATH="$HOME/anaconda/lib" pip install cryptography
-
-You will need to set this variable every time you start Python. For more
-information, consult `Greg Wilson's blog post`_ on the subject.
-
 
 .. _`Homebrew`: https://brew.sh
 .. _`MacPorts`: https://www.macports.org
 .. _`openssl-release`: https://ci.cryptography.io/job/cryptography-support-jobs/job/openssl-release-1.1/
-.. _`Greg Wilson's blog post`: https://software-carpentry.org/blog/2014/04/mr-biczo-was-right.html
 .. _virtualenv: https://virtualenv.pypa.io/en/latest/
 .. _openssl.org: https://www.openssl.org/source/
 .. _`wheel cache`: https://pip.pypa.io/en/stable/reference/pip_install/#caching

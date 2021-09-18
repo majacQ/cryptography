@@ -1,3 +1,4 @@
+accessor
 affine
 Authenticator
 backend
@@ -7,9 +8,11 @@ bcrypt
 Blowfish
 boolean
 Botan
+Brainpool
 Capitan
 Changelog
 ciphertext
+codebook
 committer
 committers
 conda
@@ -19,9 +22,11 @@ cryptographic
 cryptographically
 Debian
 decrypt
+decrypts
 Decrypts
 decrypted
 decrypting
+deprecations
 DER
 deserialize
 deserialized
@@ -43,6 +48,7 @@ Google
 hazmat
 Homebrew
 hostname
+idna
 indistinguishability
 initialisms
 interoperable
@@ -71,6 +77,7 @@ plaintext
 pre
 preprocessor
 preprocessors
+presentational
 pseudorandom
 pyOpenSSL
 relicensed
@@ -94,5 +101,8 @@ unpadding
 verifier
 Verifier
 Verisign
+versioning
 wildcard
+WoSign
 Xcode
+XEX

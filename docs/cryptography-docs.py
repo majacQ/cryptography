@@ -5,8 +5,7 @@
 from __future__ import absolute_import, division, print_function
 
 from docutils import nodes
-
-from sphinx.util.compat import Directive
+from docutils.parsers.rst import Directive
 
 
 DANGER_MESSAGE = """
@@ -59,3 +58,7 @@ def setup(app):
         latex=(latex_visit_hazmat_node, depart_hazmat_node),
     )
     app.add_directive("hazmat", HazmatDirective)
+
+    return {
+        "parallel_read_safe": True,
+    }
