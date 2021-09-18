@@ -1,6 +1,8 @@
 Changelog
 =========
 
+  <<<<<<< 3.1.x
+  =======
 .. _v35-0-0:
 
 35.0.0 - `main`_
@@ -171,6 +173,7 @@ Changelog
 * Added basic support for PKCS7 signing (including SMIME) via
   :class:`~cryptography.hazmat.primitives.serialization.pkcs7.PKCS7SignatureBuilder`.
 
+  >>>>>>> dependabot/github_actions/actions/upload-artifact-v2.2.2
 .. _v3-1-1:
 
 3.1.1 - 2020-09-22

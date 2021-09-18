@@ -21,7 +21,11 @@ __summary__ = (
 )
 __uri__ = "https://github.com/pyca/cryptography"
 
+  <<<<<<< 3.1.x
+__version__ = "3.1.1"
+  =======
 __version__ = "35.0.0.dev1"
+  >>>>>>> dependabot/github_actions/actions/upload-artifact-v2.2.2
 
 __author__ = "The Python Cryptographic Authority and individual contributors"
 __email__ = "cryptography-dev@python.org"
