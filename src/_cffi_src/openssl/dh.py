@@ -10,21 +10,16 @@ INCLUDES = """
 
 TYPES = """
 typedef ... DH;
+
+const long DH_NOT_SUITABLE_GENERATOR;
 """
 
 FUNCTIONS = """
 DH *DH_new(void);
 void DH_free(DH *);
 int DH_size(const DH *);
-int DH_check_pub_key(const DH *, const BIGNUM *, int *);
 int DH_generate_key(DH *);
 int DH_compute_key(unsigned char *, const BIGNUM *, DH *);
-int DH_set_ex_data(DH *, int, void *);
-void *DH_get_ex_data(DH *, int);
-DH *d2i_DHparams(DH **, const unsigned char **, long);
-int i2d_DHparams(const DH *, unsigned char **);
-int DHparams_print_fp(FILE *, const DH *);
-int DHparams_print(BIO *, const DH *);
 DH *DHparams_dup(DH *);
 
 /* added in 1.1.0 when the DH struct was opaqued */
@@ -35,17 +30,16 @@ void DH_get0_key(const DH *, const BIGNUM **, const BIGNUM **);
 int DH_set0_key(DH *, BIGNUM *, BIGNUM *);
 
 int Cryptography_DH_check(const DH *, int *);
-"""
-
-MACROS = """
 int DH_generate_parameters_ex(DH *, int, int, BN_GENCB *);
 DH *d2i_DHparams_bio(BIO *, DH **);
 int i2d_DHparams_bio(BIO *, DH *);
+DH *Cryptography_d2i_DHxparams_bio(BIO *bp, DH **x);
+int Cryptography_i2d_DHxparams_bio(BIO *bp, DH *x);
 """
 
 CUSTOMIZATIONS = """
-/* These functions were added in OpenSSL 1.1.0-pre5 (beta2) */
-#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110PRE5 || defined(LIBRESSL_VERSION_NUMBER)
+/* These functions were added in OpenSSL 1.1.0 */
+#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110 && !CRYPTOGRAPHY_IS_LIBRESSL
 void DH_get0_pqg(const DH *dh,
                  const BIGNUM **p, const BIGNUM **q, const BIGNUM **g)
 {
@@ -116,7 +110,7 @@ int DH_set0_key(DH *dh, BIGNUM *pub_key, BIGNUM *priv_key)
 }
 #endif
 
-#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110 || defined(LIBRESSL_VERSION_NUMBER)
+#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110
 #ifndef DH_CHECK_Q_NOT_PRIME
 #define DH_CHECK_Q_NOT_PRIME            0x10
 #endif
@@ -226,5 +220,19 @@ int Cryptography_DH_check(const DH *dh, int *ret)
 int Cryptography_DH_check(const DH *dh, int *ret) {
     return DH_check(dh, ret);
 }
+#endif
+
+/* These functions were added in OpenSSL 1.1.0f commit d0c50e80a8 */
+/* Define our own to simplify support across all versions. */
+#if defined(EVP_PKEY_DHX) && EVP_PKEY_DHX != -1
+DH *Cryptography_d2i_DHxparams_bio(BIO *bp, DH **x) {
+    return ASN1_d2i_bio_of(DH, DH_new, d2i_DHxparams, bp, x);
+}
+int Cryptography_i2d_DHxparams_bio(BIO *bp, DH *x) {
+    return ASN1_i2d_bio_of_const(DH, i2d_DHxparams, bp, x);
+}
+#else
+DH *(*Cryptography_d2i_DHxparams_bio)(BIO *bp, DH **x) = NULL;
+int (*Cryptography_i2d_DHxparams_bio)(BIO *bp, DH *x) = NULL;
 #endif
 """

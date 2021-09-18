@@ -9,12 +9,7 @@ INCLUDES = """
 """
 
 TYPES = """
-static const int Cryptography_HAS_AES_WRAP;
-
-struct aes_key_st {
-    ...;
-};
-typedef struct aes_key_st AES_KEY;
+typedef ... AES_KEY;
 """
 
 FUNCTIONS = """
@@ -27,9 +22,5 @@ int AES_unwrap_key(AES_KEY *, const unsigned char *, unsigned char *,
                    const unsigned char *, unsigned int);
 """
 
-MACROS = """
-"""
-
 CUSTOMIZATIONS = """
-static const long Cryptography_HAS_AES_WRAP = 1;
 """

@@ -1,90 +1,139 @@
-sudo: false
+sudo: true
+dist: xenial
 
 language: python
 
 cache:
     directories:
         - $HOME/.cache/pip
-        - $HOME/ossl-1/
+        - $HOME/ossl-2/
+
+# Only build master, the version branches (e.g. 1.7.x), and
+# version tags (which are apparently considered branches by travis)
+branches:
+    only:
+        - master
+        - /\d+\.\d+\.x/
+        - /\d+\.\d+(\.\d+)?/
 
 matrix:
     include:
-        - python: 2.6 # these are just to make travis's UI a bit prettier
-          env: TOXENV=py26
+        - python: 3.8
+          env: TOXENV=pep8
+        # Setting 'python' is just to make travis's UI a bit prettier
         - python: 2.7
           env: TOXENV=py27
-        - python: 3.3
-          env: TOXENV=py33
-        - python: 3.4
-          env: TOXENV=py34
         - python: 3.5
           env: TOXENV=py35
         - python: 3.6
           env: TOXENV=py36
-        - python: pypy
-          env: TOXENV=pypy-nocoverage PYPY_VERSION=2.6.1
-        - python: pypy
-          env: TOXENV=pypy PYPY_VERSION=4.0.1
-        - python: pypy
-          env: TOXENV=pypy PYPY_VERSION=5.6.0
+        - python: 3.7
+          env: TOXENV=py37
+        - python: 3.8
+          env: TOXENV=py38
+        - python: 3.8
+          env: TOXENV=py38-idna
+        - python: pypy-5.4
+          env: TOXENV=pypy-nocoverage
+          # PyPy 5.4 isn't available for xenial
+          dist: trusty
+        - python: pypy2.7-7.1.1
+          # I don't know how to enumerate pypy versions in Travis other than to look at
+          # https://github.com/travis-ci/travis-nightly-builder/blob/build/Rakefile#L74-L106
+          env: TOXENV=pypy-nocoverage
+        - python: pypy3.5-7.0
+          env: TOXENV=pypy3-nocoverage
         - python: 2.7
-          env: TOXENV=py27 OPENSSL=1.1.0e
+          env: TOXENV=py27 OPENSSL=1.0.1u
+        - python: 3.8
+          env: TOXENV=py38 OPENSSL=1.0.1u
+        - python: 2.7
+          env: TOXENV=py27 OPENSSL=1.1.0l
+        - python: 3.8
+          env: TOXENV=py38 OPENSSL=1.1.0l
+        - python: 2.7
+          env: TOXENV=py27 OPENSSL=1.1.1d
+        - python: 3.8
+          env: TOXENV=py38 OPENSSL=1.1.1d
+        - python: 3.8
+          env: TOXENV=py38 OPENSSL=1.1.1d OPENSSL_CONFIG_FLAGS="no-engine no-rc2"
+        - python: 3.8
+          env: TOXENV=py38 LIBRESSL=2.7.5
+        - python: 3.8
+          env: TOXENV=py38 LIBRESSL=2.8.3
+        - python: 3.8
+          env: TOXENV=py38 LIBRESSL=2.9.2
+        - python: 3.8
+          env: TOXENV=py38 LIBRESSL=3.0.2
+
+        - python: 2.7
+          services: docker
+          env: TOXENV=py27 DOCKER=pyca/cryptography-runner-centos7
+        - python: 2.7
+          services: docker
+          env: TOXENV=py27 DOCKER=pyca/cryptography-runner-jessie
+        - python: 2.7
+          services: docker
+          env: TOXENV=py27 DOCKER=pyca/cryptography-runner-stretch
         - python: 3.5
-          env: TOXENV=py35 OPENSSL=1.1.0e
+          services: docker
+          env: TOXENV=py35 DOCKER=pyca/cryptography-runner-stretch
+        - python: 3.7
+          services: docker
+          env: TOXENV=py37 DOCKER=pyca/cryptography-runner-buster
+        - python: 3.8
+          services: docker
+          env: TOXENV=py38 DOCKER=pyca/cryptography-runner-sid
         - python: 2.7
-          env: TOXENV=docs
+          services: docker
+          env: TOXENV=py27 DOCKER=pyca/cryptography-runner-ubuntu-trusty
+        - python: 2.7
+          services: docker
+          env: TOXENV=py27 DOCKER=pyca/cryptography-runner-ubuntu-rolling
+        - python: 3.7
+          services: docker
+          env: TOXENV=py37 DOCKER=pyca/cryptography-runner-ubuntu-rolling
+        - python: 2.7
+          services: docker
+          env: TOXENV=py27-randomorder DOCKER=pyca/cryptography-runner-ubuntu-rolling
+        - python: 3.7
+          services: docker
+          env: TOXENV=py37 DOCKER=pyca/cryptography-runner-fedora
+        - python: 3.8
+          services: docker
+          env: TOXENV=py38 DOCKER=pyca/cryptography-runner-alpine:latest
+
+        - python: 3.8
+          env: TOXENV=docs OPENSSL=1.1.1d
           addons:
               apt:
                   packages:
                       - libenchant-dev
         - python: 2.7
-          env: TOXENV=pep8
-        - python: 3.4
-          env: TOXENV=py3pep8
-        - language: generic
-          os: osx
-          # 8.1 is macOS 10.12.x
-          # see: https://docs.travis-ci.com/user/osx-ci-environment/
-          osx_image: xcode8.1
-          env: TOXENV=py27 CRYPTOGRAPHY_OSX_NO_LINK_FLAGS=1
-        - language: generic
-          os: osx
-          osx_image: xcode8.1
-          env: TOXENV=py33 CRYPTOGRAPHY_OSX_NO_LINK_FLAGS=1
-        - language: generic
-          os: osx
-          osx_image: xcode8.1
-          env: TOXENV=py34 CRYPTOGRAPHY_OSX_NO_LINK_FLAGS=1
-        - language: generic
-          os: osx
-          osx_image: xcode8.1
-          env: TOXENV=py35 CRYPTOGRAPHY_OSX_NO_LINK_FLAGS=1
-        - language: generic
-          os: osx
-          osx_image: xcode8.1
-          env: TOXENV=py36 CRYPTOGRAPHY_OSX_NO_LINK_FLAGS=1
-        - language: generic
-          os: osx
-          osx_image: xcode8.1
-          env: TOXENV=pypy-nocoverage CRYPTOGRAPHY_OSX_NO_LINK_FLAGS=1 PYPY_VERSION=5.6.0
-        - language: generic
-          os: osx
-          osx_image: xcode8.1
-          env: TOXENV=py27 CRYPTOGRAPHY_OSX_NO_LINK_FLAGS=0
-        - language: generic
-          os: osx
-          # 7.3 is OS X 10.11.x
-          osx_image: xcode7.3
-          env: TOXENV=py27 CRYPTOGRAPHY_OSX_NO_LINK_FLAGS=1
-        - language: generic
-          os: osx
-          # 6.4 is OS X 10.10.x
-          osx_image: xcode6.4
-          env: TOXENV=py27 CRYPTOGRAPHY_OSX_NO_LINK_FLAGS=1
-        - language: generic
-          os: osx
-          osx_image: xcode8.1
-          env: TOXENV=docs CRYPTOGRAPHY_OSX_NO_LINK_FLAGS=1
+          services: docker
+          env: TOXENV=docs-linkcheck DOCKER=pyca/cryptography-runner-buster
+          if: (branch = master AND type != pull_request) OR commit_message =~ /linkcheck/
+        - python: 3.8
+          env: TOXENV=packaging
+
+        - python: 2.7
+          env: DOWNSTREAM=pyopenssl
+        - python: 3.7
+          env: DOWNSTREAM=twisted OPENSSL=1.1.1d
+        - python: 2.7
+          env: DOWNSTREAM=paramiko
+        - python: 2.7
+          env: DOWNSTREAM=aws-encryption-sdk
+        - python: 2.7
+          # BOTO_CONFIG works around this boto issue on travis:
+          # https://github.com/boto/boto/issues/3717
+          env: DOWNSTREAM=dynamodb-encryption-sdk OPENSSL=1.1.0l BOTO_CONFIG=/dev/null
+        - python: 2.7
+          env: DOWNSTREAM=certbot OPENSSL=1.1.0l
+        - python: 2.7
+          env: DOWNSTREAM=certbot-josepy
+        - python: 2.7
+          env: DOWNSTREAM=urllib3
 
 install:
     - ./.travis/install.sh

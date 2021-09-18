@@ -22,7 +22,6 @@ A specific ``backend`` may provide one or more of these interfaces.
     The following backends implement this interface:
 
     * :doc:`/hazmat/backends/openssl`
-    * :doc:`/hazmat/backends/commoncrypto`
 
     .. method:: cipher_supported(cipher, mode)
 
@@ -84,7 +83,6 @@ A specific ``backend`` may provide one or more of these interfaces.
     The following backends implement this interface:
 
     * :doc:`/hazmat/backends/openssl`
-    * :doc:`/hazmat/backends/commoncrypto`
 
     .. method:: hash_supported(algorithm)
 
@@ -118,7 +116,6 @@ A specific ``backend`` may provide one or more of these interfaces.
     The following backends implement this interface:
 
     * :doc:`/hazmat/backends/openssl`
-    * :doc:`/hazmat/backends/commoncrypto`
 
     .. method:: hmac_supported(algorithm)
 
@@ -162,14 +159,13 @@ A specific ``backend`` may provide one or more of these interfaces.
     .. method:: create_cmac_ctx(algorithm)
 
         Create a
-        :class:`~cryptography.hazmat.primitives.interfaces.MACContext` that
+        context that
         uses the specified ``algorithm`` to calculate a message authentication code.
 
         :param algorithm: An instance of
             :class:`~cryptography.hazmat.primitives.ciphers.BlockCipherAlgorithm`.
 
-        :returns:
-            :class:`~cryptography.hazmat.primitives.interfaces.MACContext`
+        :returns: CMAC object.
 
 
 .. class:: PBKDF2HMACBackend
@@ -181,7 +177,6 @@ A specific ``backend`` may provide one or more of these interfaces.
     The following backends implement this interface:
 
     * :doc:`/hazmat/backends/openssl`
-    * :doc:`/hazmat/backends/commoncrypto`
 
     .. method:: pbkdf2_hmac_supported(algorithm)
 
@@ -270,7 +265,7 @@ A specific ``backend`` may provide one or more of these interfaces.
     .. method:: load_rsa_public_numbers(numbers)
 
         :param numbers: An instance of
-            :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateNumbers`.
+            :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicNumbers`.
 
         :returns: An instance of
             :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`.
@@ -456,6 +451,15 @@ A specific ``backend`` may provide one or more of these interfaces.
             serialized data contains.
         :raises ValueError: If the data could not be deserialized.
 
+    .. method:: load_pem_parameters(data)
+
+        .. versionadded:: 2.0
+
+        :param bytes data: PEM data to load.
+        :return: A new instance of the appropriate type of asymmetric
+            parameters the serialized data contains.
+        :raises ValueError: If the data could not be deserialized.
+
 .. class:: DERSerializationBackend
 
     .. versionadded:: 0.8
@@ -479,6 +483,16 @@ A specific ``backend`` may provide one or more of these interfaces.
         :return: A new instance of the appropriate type of public key
             serialized data contains.
         :raises ValueError: If the data could not be deserialized.
+
+    .. method:: load_der_parameters(data)
+
+        .. versionadded:: 2.0
+
+        :param bytes data: DER data to load.
+        :return: A new instance of the appropriate type of asymmetric
+            parameters the serialized data contains.
+        :raises ValueError: If the data could not be deserialized.
+
 
 .. class:: X509Backend
 

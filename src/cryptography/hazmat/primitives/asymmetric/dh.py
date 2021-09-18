@@ -87,8 +87,8 @@ class DHParameterNumbers(object):
         if q is not None and not isinstance(q, six.integer_types):
             raise TypeError("q must be integer or None")
 
-        if q is None and g not in (2, 5):
-            raise ValueError("DH generator must be 2 or 5")
+        if g < 2:
+            raise ValueError("DH generator must be 2 or greater")
 
         self._p = p
         self._g = g
@@ -123,14 +123,20 @@ class DHParameters(object):
         Generates and returns a DHPrivateKey.
         """
 
+    @abc.abstractmethod
+    def parameter_bytes(self, encoding, format):
+        """
+        Returns the parameters serialized as bytes.
+        """
 
-@six.add_metaclass(abc.ABCMeta)
-class DHParametersWithSerialization(DHParameters):
     @abc.abstractmethod
     def parameter_numbers(self):
         """
         Returns a DHParameterNumbers.
         """
+
+
+DHParametersWithSerialization = DHParameters
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -153,6 +159,13 @@ class DHPrivateKey(object):
         The DHParameters object associated with this private key.
         """
 
+    @abc.abstractmethod
+    def exchange(self, peer_public_key):
+        """
+        Given peer's DHPublicKey, carry out the key exchange and
+        return shared key as bytes.
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class DHPrivateKeyWithSerialization(DHPrivateKey):
@@ -163,10 +176,9 @@ class DHPrivateKeyWithSerialization(DHPrivateKey):
         """
 
     @abc.abstractmethod
-    def exchange(self, peer_public_key):
+    def private_bytes(self, encoding, format, encryption_algorithm):
         """
-        Given peer's DHPublicKey, carry out the key exchange and
-        return shared key as bytes.
+        Returns the key serialized as bytes.
         """
 
 
@@ -184,11 +196,17 @@ class DHPublicKey(object):
         The DHParameters object associated with this public key.
         """
 
-
-@six.add_metaclass(abc.ABCMeta)
-class DHPublicKeyWithSerialization(DHPublicKey):
     @abc.abstractmethod
     def public_numbers(self):
         """
         Returns a DHPublicNumbers.
         """
+
+    @abc.abstractmethod
+    def public_bytes(self, encoding, format):
+        """
+        Returns the key serialized as bytes.
+        """
+
+
+DHPublicKeyWithSerialization = DHPublicKey

@@ -7,16 +7,8 @@ from __future__ import absolute_import, division, print_function
 import pytest
 
 from cryptography.hazmat.primitives.asymmetric.utils import (
-    Prehashed, decode_dss_signature, decode_rfc6979_signature,
-    encode_dss_signature, encode_rfc6979_signature,
+    Prehashed, decode_dss_signature, encode_dss_signature
 )
-
-
-def test_deprecated_rfc6979_signature():
-    sig = pytest.deprecated_call(encode_rfc6979_signature, 1, 1)
-    assert sig == b"0\x06\x02\x01\x01\x02\x01\x01"
-    decoded = pytest.deprecated_call(decode_rfc6979_signature, sig)
-    assert decoded == (1, 1)
 
 
 def test_dss_signature():
@@ -39,10 +31,6 @@ def test_dss_signature():
     assert sig3 == b"0\x06\x02\x01\x00\x02\x01\x00"
     assert decode_dss_signature(sig3) == (0, 0)
 
-    sig4 = encode_dss_signature(-1, 0)
-    assert sig4 == b"0\x06\x02\x01\xFF\x02\x01\x00"
-    assert decode_dss_signature(sig4) == (-1, 0)
-
 
 def test_encode_dss_non_integer():
     with pytest.raises(ValueError):
@@ -59,6 +47,11 @@ def test_encode_dss_non_integer():
 
     with pytest.raises(ValueError):
         encode_dss_signature("hello", "world")
+
+
+def test_encode_dss_negative():
+    with pytest.raises(ValueError):
+        encode_dss_signature(-1, 0)
 
 
 def test_decode_dss_trailing_bytes():

@@ -17,7 +17,7 @@ def _dh_params_dup(dh_cdata, backend):
     param_cdata = lib.DHparams_dup(dh_cdata)
     backend.openssl_assert(param_cdata != ffi.NULL)
     param_cdata = ffi.gc(param_cdata, lib.DH_free)
-    if lib.OPENSSL_VERSION_NUMBER < 0x10002000 or lib.CRYPTOGRAPHY_IS_LIBRESSL:
+    if lib.CRYPTOGRAPHY_OPENSSL_LESS_THAN_102:
         # In OpenSSL versions < 1.0.2 or libressl DHparams_dup don't copy q
         q = ffi.new("BIGNUM **")
         lib.DH_get0_pqg(dh_cdata, ffi.NULL, q, ffi.NULL)
@@ -59,15 +59,37 @@ class _DHParameters(object):
     def generate_private_key(self):
         return self._backend.generate_dh_private_key(self)
 
+    def parameter_bytes(self, encoding, format):
+        if format is not serialization.ParameterFormat.PKCS3:
+            raise ValueError(
+                "Only PKCS3 serialization is supported"
+            )
+        if not self._backend._lib.Cryptography_HAS_EVP_PKEY_DHX:
+            q = self._backend._ffi.new("BIGNUM **")
+            self._backend._lib.DH_get0_pqg(self._dh_cdata,
+                                           self._backend._ffi.NULL,
+                                           q,
+                                           self._backend._ffi.NULL)
+            if q[0] != self._backend._ffi.NULL:
+                raise UnsupportedAlgorithm(
+                    "DH X9.42 serialization is not supported",
+                    _Reasons.UNSUPPORTED_SERIALIZATION)
+
+        return self._backend._parameter_bytes(
+            encoding,
+            format,
+            self._dh_cdata
+        )
+
 
 def _handle_dh_compute_key_error(errors, backend):
     lib = backend._lib
 
-    backend.openssl_assert(errors[0][1:] == (
-        lib.ERR_LIB_DH,
-        lib.DH_F_COMPUTE_KEY,
-        lib.DH_R_INVALID_PUBKEY
-    ))
+    backend.openssl_assert(
+        errors[0]._lib_reason_match(
+            lib.ERR_LIB_DH, lib.DH_R_INVALID_PUBKEY
+        )
+    )
 
     raise ValueError("Public key value is invalid for this exchange.")
 

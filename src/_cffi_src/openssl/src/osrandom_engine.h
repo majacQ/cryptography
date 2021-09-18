@@ -1,3 +1,5 @@
+#ifndef OPENSSL_NO_ENGINE
+/* OpenSSL has ENGINE support so include all of this. */
 #ifdef _WIN32
   #include <Wincrypt.h>
 #else
@@ -13,7 +15,9 @@
 
   #ifdef __APPLE__
     #include <sys/random.h>
-    #include <AvailabilityMacros.h>
+    /* To support weak linking we need to declare this as a weak import even if
+     * it's not present in sys/random (e.g. macOS < 10.12). */
+    extern int getentropy(void *buffer, size_t size) __attribute((weak_import));
   #endif
 
   #ifdef __linux__
@@ -22,6 +26,18 @@
     #ifndef GRND_NONBLOCK
       #define GRND_NONBLOCK 0x0001
     #endif /* GRND_NONBLOCK */
+
+    #ifndef SYS_getrandom
+      /* We only bother to define the constants for platforms where we ship
+       * wheels, since that's the predominant way you get a situation where
+       * you don't have SYS_getrandom at compile time but do have the syscall
+       * at runtime */
+      #if defined __x86_64__
+        #define SYS_getrandom 318
+      #elif defined(__i386__)
+        #define SYS_getrandom 355
+      #endif
+    #endif
   #endif /* __linux__ */
 #endif /* _WIN32 */
 
@@ -34,14 +50,12 @@
   #if defined(_WIN32)
     /* Windows */
     #define CRYPTOGRAPHY_OSRANDOM_ENGINE CRYPTOGRAPHY_OSRANDOM_ENGINE_CRYPTGENRANDOM
-  #elif defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= 101200
-    /* macOS 10.12+ */
-    #define CRYPTOGRAPHY_OSRANDOM_ENGINE CRYPTOGRAPHY_OSRANDOM_ENGINE_GETENTROPY
-  #elif defined(BSD) && defined(SYS_getentropy) && !defined(__APPLE__)
-    /* OpenBSD 5.6+ */
+  #elif defined(BSD) && defined(SYS_getentropy)
+    /* OpenBSD 5.6+ & macOS with SYS_getentropy defined, although < 10.12 will fallback
+     * to urandom */
     #define CRYPTOGRAPHY_OSRANDOM_ENGINE CRYPTOGRAPHY_OSRANDOM_ENGINE_GETENTROPY
   #elif defined(__linux__) && defined(SYS_getrandom)
-    /* Linux 3.4.17+ */
+    /* Linux 3.17+ */
     #define CRYPTOGRAPHY_OSRANDOM_ENGINE CRYPTOGRAPHY_OSRANDOM_ENGINE_GETRANDOM
   #else
     /* Keep this as last entry, fall back to /dev/urandom */
@@ -51,7 +65,9 @@
 
 /* Fallbacks need /dev/urandom helper functions. */
 #if CRYPTOGRAPHY_OSRANDOM_ENGINE == CRYPTOGRAPHY_OSRANDOM_ENGINE_GETRANDOM || \
-     CRYPTOGRAPHY_OSRANDOM_ENGINE == CRYPTOGRAPHY_OSRANDOM_ENGINE_DEV_URANDOM
+     CRYPTOGRAPHY_OSRANDOM_ENGINE == CRYPTOGRAPHY_OSRANDOM_ENGINE_DEV_URANDOM || \
+     (CRYPTOGRAPHY_OSRANDOM_ENGINE == CRYPTOGRAPHY_OSRANDOM_ENGINE_GETENTROPY && \
+     defined(__APPLE__))
   #define CRYPTOGRAPHY_OSRANDOM_NEEDS_DEV_URANDOM 1
 #endif
 
@@ -60,6 +76,12 @@ enum {
     CRYPTOGRAPHY_OSRANDOM_GETRANDOM_NOT_INIT,
     CRYPTOGRAPHY_OSRANDOM_GETRANDOM_FALLBACK,
     CRYPTOGRAPHY_OSRANDOM_GETRANDOM_WORKS
+};
+
+enum {
+    CRYPTOGRAPHY_OSRANDOM_GETENTROPY_NOT_INIT,
+    CRYPTOGRAPHY_OSRANDOM_GETENTROPY_FALLBACK,
+    CRYPTOGRAPHY_OSRANDOM_GETENTROPY_WORKS
 };
 
 /* engine ctrl */
@@ -86,7 +108,7 @@ static void ERR_Cryptography_OSRandom_error(int function, int reason,
 #define CRYPTOGRAPHY_OSRANDOM_R_DEV_URANDOM_READ_FAILED 301
 
 #define CRYPTOGRAPHY_OSRANDOM_R_GETRANDOM_INIT_FAILED 400
-#define CRYPTOGRAPHY_OSRANDOM_R_GETRANDOM_INIT_FAILED_EAGAIN 401
 #define CRYPTOGRAPHY_OSRANDOM_R_GETRANDOM_INIT_FAILED_UNEXPECTED 402
 #define CRYPTOGRAPHY_OSRANDOM_R_GETRANDOM_FAILED 403
 #define CRYPTOGRAPHY_OSRANDOM_R_GETRANDOM_NOT_INIT 404
+#endif

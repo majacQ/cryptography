@@ -5,26 +5,32 @@
 from __future__ import absolute_import, division, print_function
 
 import base64
-import calendar
 import collections
 import contextlib
 import itertools
 from contextlib import contextmanager
 
 import six
+from six.moves import range
 
 from cryptography import utils, x509
 from cryptography.exceptions import UnsupportedAlgorithm, _Reasons
+from cryptography.hazmat._der import (
+    INTEGER, NULL, SEQUENCE, encode_der, encode_der_integer
+)
 from cryptography.hazmat.backends.interfaces import (
     CMACBackend, CipherBackend, DERSerializationBackend, DHBackend, DSABackend,
     EllipticCurveBackend, HMACBackend, HashBackend, PBKDF2HMACBackend,
     PEMSerializationBackend, RSABackend, ScryptBackend, X509Backend
 )
+from cryptography.hazmat.backends.openssl import aead
 from cryptography.hazmat.backends.openssl.ciphers import _CipherContext
 from cryptography.hazmat.backends.openssl.cmac import _CMACContext
+from cryptography.hazmat.backends.openssl.decode_asn1 import (
+    _CRL_ENTRY_REASON_ENUM_TO_CODE
+)
 from cryptography.hazmat.backends.openssl.dh import (
-    _DHParameters, _DHPrivateKey, _DHPublicKey,
-    _dh_params_dup
+    _DHParameters, _DHPrivateKey, _DHPublicKey, _dh_params_dup
 )
 from cryptography.hazmat.backends.openssl.dsa import (
     _DSAParameters, _DSAPrivateKey, _DSAPublicKey
@@ -32,15 +38,35 @@ from cryptography.hazmat.backends.openssl.dsa import (
 from cryptography.hazmat.backends.openssl.ec import (
     _EllipticCurvePrivateKey, _EllipticCurvePublicKey
 )
+from cryptography.hazmat.backends.openssl.ed25519 import (
+    _Ed25519PrivateKey, _Ed25519PublicKey
+)
+from cryptography.hazmat.backends.openssl.ed448 import (
+    _ED448_KEY_SIZE, _Ed448PrivateKey, _Ed448PublicKey
+)
 from cryptography.hazmat.backends.openssl.encode_asn1 import (
     _CRL_ENTRY_EXTENSION_ENCODE_HANDLERS,
     _CRL_EXTENSION_ENCODE_HANDLERS, _EXTENSION_ENCODE_HANDLERS,
+    _OCSP_BASICRESP_EXTENSION_ENCODE_HANDLERS,
+    _OCSP_REQUEST_EXTENSION_ENCODE_HANDLERS,
     _encode_asn1_int_gc, _encode_asn1_str_gc, _encode_name_gc, _txt2obj_gc,
 )
 from cryptography.hazmat.backends.openssl.hashes import _HashContext
 from cryptography.hazmat.backends.openssl.hmac import _HMACContext
+from cryptography.hazmat.backends.openssl.ocsp import (
+    _OCSPRequest, _OCSPResponse
+)
+from cryptography.hazmat.backends.openssl.poly1305 import (
+    _POLY1305_KEY_SIZE, _Poly1305Context
+)
 from cryptography.hazmat.backends.openssl.rsa import (
     _RSAPrivateKey, _RSAPublicKey
+)
+from cryptography.hazmat.backends.openssl.x25519 import (
+    _X25519PrivateKey, _X25519PublicKey
+)
+from cryptography.hazmat.backends.openssl.x448 import (
+    _X448PrivateKey, _X448PublicKey
 )
 from cryptography.hazmat.backends.openssl.x509 import (
     _Certificate, _CertificateRevocationList,
@@ -48,20 +74,29 @@ from cryptography.hazmat.backends.openssl.x509 import (
 )
 from cryptography.hazmat.bindings.openssl import binding
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, rsa
+from cryptography.hazmat.primitives.asymmetric import (
+    dsa, ec, ed25519, ed448, rsa
+)
 from cryptography.hazmat.primitives.asymmetric.padding import (
     MGF1, OAEP, PKCS1v15, PSS
 )
 from cryptography.hazmat.primitives.ciphers.algorithms import (
-    AES, ARC4, Blowfish, CAST5, Camellia, IDEA, SEED, TripleDES
+    AES, ARC4, Blowfish, CAST5, Camellia, ChaCha20, IDEA, SEED, TripleDES
 )
 from cryptography.hazmat.primitives.ciphers.modes import (
-    CBC, CFB, CFB8, CTR, ECB, GCM, OFB
+    CBC, CFB, CFB8, CTR, ECB, GCM, OFB, XTS
 )
 from cryptography.hazmat.primitives.kdf import scrypt
+from cryptography.hazmat.primitives.serialization import ssh
+from cryptography.x509 import ocsp
 
 
 _MemoryBIO = collections.namedtuple("_MemoryBIO", ["bio", "char_ptr"])
+
+
+# Not actually supported, just used as a marker for some serialization tests.
+class _RC2(object):
+    pass
 
 
 @utils.register_interface(CipherBackend)
@@ -90,12 +125,6 @@ class Backend(object):
         self._ffi = self._binding.ffi
         self._lib = self._binding.lib
 
-        # Set the default string mask for encoding ASN1 strings to UTF8. This
-        # is the default for newer OpenSSLs for several years and is
-        # recommended in RFC 2459.
-        res = self._lib.ASN1_STRING_set_default_mask_asc(b"utf8only")
-        self.openssl_assert(res == 1)
-
         self._cipher_registry = {}
         self._register_default_ciphers()
         self.activate_osrandom_engine()
@@ -107,21 +136,23 @@ class Backend(object):
         return binding._openssl_assert(self._lib, ok)
 
     def activate_builtin_random(self):
-        # Obtain a new structural reference.
-        e = self._lib.ENGINE_get_default_RAND()
-        if e != self._ffi.NULL:
-            self._lib.ENGINE_unregister_RAND(e)
-            # Reset the RNG to use the new engine.
-            self._lib.RAND_cleanup()
-            # decrement the structural reference from get_default_RAND
-            res = self._lib.ENGINE_finish(e)
-            self.openssl_assert(res == 1)
+        if self._lib.Cryptography_HAS_ENGINE:
+            # Obtain a new structural reference.
+            e = self._lib.ENGINE_get_default_RAND()
+            if e != self._ffi.NULL:
+                self._lib.ENGINE_unregister_RAND(e)
+                # Reset the RNG to use the built-in.
+                res = self._lib.RAND_set_rand_method(self._ffi.NULL)
+                self.openssl_assert(res == 1)
+                # decrement the structural reference from get_default_RAND
+                res = self._lib.ENGINE_finish(e)
+                self.openssl_assert(res == 1)
 
     @contextlib.contextmanager
     def _get_osurandom_engine(self):
         # Fetches an engine by id and returns it. This creates a structural
         # reference.
-        e = self._lib.ENGINE_by_id(self._binding._osrandom_engine_id)
+        e = self._lib.ENGINE_by_id(self._lib.Cryptography_osrandom_engine_id)
         self.openssl_assert(e != self._ffi.NULL)
         # Initialize the engine for use. This adds a functional reference.
         res = self._lib.ENGINE_init(e)
@@ -138,14 +169,16 @@ class Backend(object):
             self.openssl_assert(res == 1)
 
     def activate_osrandom_engine(self):
-        # Unregister and free the current engine.
-        self.activate_builtin_random()
-        with self._get_osurandom_engine() as e:
-            # Set the engine as the default RAND provider.
-            res = self._lib.ENGINE_set_default_RAND(e)
+        if self._lib.Cryptography_HAS_ENGINE:
+            # Unregister and free the current engine.
+            self.activate_builtin_random()
+            with self._get_osurandom_engine() as e:
+                # Set the engine as the default RAND provider.
+                res = self._lib.ENGINE_set_default_RAND(e)
+                self.openssl_assert(res == 1)
+            # Reset the RNG to use the engine
+            res = self._lib.RAND_set_rand_method(self._ffi.NULL)
             self.openssl_assert(res == 1)
-        # Reset the RNG to use the new engine.
-        self._lib.RAND_cleanup()
 
     def osrandom_engine_implementation(self):
         buf = self._ffi.new("char[]", 64)
@@ -173,20 +206,25 @@ class Backend(object):
     def create_hmac_ctx(self, key, algorithm):
         return _HMACContext(self, key, algorithm)
 
-    def _build_openssl_digest_name(self, algorithm):
+    def _evp_md_from_algorithm(self, algorithm):
         if algorithm.name == "blake2b" or algorithm.name == "blake2s":
-            alg = "{0}{1}".format(
+            alg = "{}{}".format(
                 algorithm.name, algorithm.digest_size * 8
             ).encode("ascii")
         else:
             alg = algorithm.name.encode("ascii")
 
-        return alg
+        evp_md = self._lib.EVP_get_digestbyname(alg)
+        return evp_md
+
+    def _evp_md_non_null_from_algorithm(self, algorithm):
+        evp_md = self._evp_md_from_algorithm(algorithm)
+        self.openssl_assert(evp_md != self._ffi.NULL)
+        return evp_md
 
     def hash_supported(self, algorithm):
-        name = self._build_openssl_digest_name(algorithm)
-        digest = self._lib.EVP_get_digestbyname(name)
-        return digest != self._ffi.NULL
+        evp_md = self._evp_md_from_algorithm(algorithm)
+        return evp_md != self._ffi.NULL
 
     def hmac_supported(self, algorithm):
         return self.hash_supported(algorithm)
@@ -204,7 +242,7 @@ class Backend(object):
 
     def register_cipher_adapter(self, cipher_cls, mode_cls, adapter):
         if (cipher_cls, mode_cls) in self._cipher_registry:
-            raise ValueError("Duplicate registration for: {0} {1}.".format(
+            raise ValueError("Duplicate registration for: {} {}.".format(
                 cipher_cls, mode_cls)
             )
         self._cipher_registry[cipher_cls, mode_cls] = adapter
@@ -259,6 +297,16 @@ class Backend(object):
             type(None),
             GetCipherByName("rc4")
         )
+        # We don't actually support RC2, this is just used by some tests.
+        self.register_cipher_adapter(
+            _RC2, type(None), GetCipherByName("rc2")
+        )
+        self.register_cipher_adapter(
+            ChaCha20,
+            type(None),
+            GetCipherByName("chacha20")
+        )
+        self.register_cipher_adapter(AES, XTS, _get_xts_cipher)
 
     def create_symmetric_encryption_ctx(self, cipher, mode):
         return _CipherContext(self, cipher, mode, _CipherContext._ENCRYPT)
@@ -272,11 +320,10 @@ class Backend(object):
     def derive_pbkdf2_hmac(self, algorithm, length, salt, iterations,
                            key_material):
         buf = self._ffi.new("unsigned char[]", length)
-        evp_md = self._lib.EVP_get_digestbyname(
-            algorithm.name.encode("ascii"))
-        self.openssl_assert(evp_md != self._ffi.NULL)
+        evp_md = self._evp_md_non_null_from_algorithm(algorithm)
+        key_material_ptr = self._ffi.from_buffer(key_material)
         res = self._lib.PKCS5_PBKDF2_HMAC(
-            key_material,
+            key_material_ptr,
             len(key_material),
             salt,
             len(salt),
@@ -294,14 +341,17 @@ class Backend(object):
     def _bn_to_int(self, bn):
         assert bn != self._ffi.NULL
 
-        if six.PY3:
+        if not six.PY2:
             # Python 3 has constant time from_bytes, so use that.
             bn_num_bytes = self._lib.BN_num_bytes(bn)
             bin_ptr = self._ffi.new("unsigned char[]", bn_num_bytes)
             bin_len = self._lib.BN_bn2bin(bn, bin_ptr)
             # A zero length means the BN has value 0
             self.openssl_assert(bin_len >= 0)
-            return int.from_bytes(self._ffi.buffer(bin_ptr)[:bin_len], "big")
+            val = int.from_bytes(self._ffi.buffer(bin_ptr)[:bin_len], "big")
+            if self._lib.BN_is_negative(bn):
+                val = -val
+            return val
         else:
             # Under Python 2 the best we can do is hex()
             hex_cdata = self._lib.BN_bn2hex(bn)
@@ -322,7 +372,7 @@ class Backend(object):
         if bn is None:
             bn = self._ffi.NULL
 
-        if six.PY3:
+        if not six.PY2:
             # Python 3 has constant time to_bytes, so use that.
 
             binary = num.to_bytes(int(num.bit_length() / 8.0 + 1), "big")
@@ -331,9 +381,9 @@ class Backend(object):
             return bn_ptr
 
         else:
-            # Under Python 2 the best we can do is hex()
-
-            hex_num = hex(num).rstrip("L").lstrip("0x").encode("ascii") or b"0"
+            # Under Python 2 the best we can do is hex(), [2:] removes the 0x
+            # prefix.
+            hex_num = hex(num).rstrip("L")[2:].encode("ascii")
             bn_ptr = self._ffi.new("BIGNUM **")
             bn_ptr[0] = bn
             res = self._lib.BN_hex2bn(bn_ptr, hex_num)
@@ -429,13 +479,13 @@ class Backend(object):
         The char* is the storage for the BIO and it must stay alive until the
         BIO is finished with.
         """
-        data_char_p = self._ffi.new("char[]", data)
+        data_ptr = self._ffi.from_buffer(data)
         bio = self._lib.BIO_new_mem_buf(
-            data_char_p, len(data)
+            data_ptr, len(data)
         )
         self.openssl_assert(bio != self._ffi.NULL)
 
-        return _MemoryBIO(self._ffi.gc(bio, self._lib.BIO_free), data_char_p)
+        return _MemoryBIO(self._ffi.gc(bio, self._lib.BIO_free), data_ptr)
 
     def _create_mem_bio_gc(self):
         """
@@ -477,8 +527,7 @@ class Backend(object):
             self.openssl_assert(dsa_cdata != self._ffi.NULL)
             dsa_cdata = self._ffi.gc(dsa_cdata, self._lib.DSA_free)
             return _DSAPrivateKey(self, dsa_cdata, evp_pkey)
-        elif (self._lib.Cryptography_HAS_EC == 1 and
-              key_type == self._lib.EVP_PKEY_EC):
+        elif key_type == self._lib.EVP_PKEY_EC:
             ec_cdata = self._lib.EVP_PKEY_get1_EC_KEY(evp_pkey)
             self.openssl_assert(ec_cdata != self._ffi.NULL)
             ec_cdata = self._ffi.gc(ec_cdata, self._lib.EC_KEY_free)
@@ -488,6 +537,18 @@ class Backend(object):
             self.openssl_assert(dh_cdata != self._ffi.NULL)
             dh_cdata = self._ffi.gc(dh_cdata, self._lib.DH_free)
             return _DHPrivateKey(self, dh_cdata, evp_pkey)
+        elif key_type == getattr(self._lib, "EVP_PKEY_ED25519", None):
+            # EVP_PKEY_ED25519 is not present in OpenSSL < 1.1.1
+            return _Ed25519PrivateKey(self, evp_pkey)
+        elif key_type == getattr(self._lib, "EVP_PKEY_X448", None):
+            # EVP_PKEY_X448 is not present in OpenSSL < 1.1.1
+            return _X448PrivateKey(self, evp_pkey)
+        elif key_type == getattr(self._lib, "EVP_PKEY_X25519", None):
+            # EVP_PKEY_X25519 is not present in OpenSSL < 1.1.0
+            return _X25519PrivateKey(self, evp_pkey)
+        elif key_type == getattr(self._lib, "EVP_PKEY_ED448", None):
+            # EVP_PKEY_ED448 is not present in OpenSSL < 1.1.1
+            return _Ed448PrivateKey(self, evp_pkey)
         else:
             raise UnsupportedAlgorithm("Unsupported key type.")
 
@@ -509,8 +570,7 @@ class Backend(object):
             self.openssl_assert(dsa_cdata != self._ffi.NULL)
             dsa_cdata = self._ffi.gc(dsa_cdata, self._lib.DSA_free)
             return _DSAPublicKey(self, dsa_cdata, evp_pkey)
-        elif (self._lib.Cryptography_HAS_EC == 1 and
-              key_type == self._lib.EVP_PKEY_EC):
+        elif key_type == self._lib.EVP_PKEY_EC:
             ec_cdata = self._lib.EVP_PKEY_get1_EC_KEY(evp_pkey)
             self.openssl_assert(ec_cdata != self._ffi.NULL)
             ec_cdata = self._ffi.gc(ec_cdata, self._lib.EC_KEY_free)
@@ -520,6 +580,18 @@ class Backend(object):
             self.openssl_assert(dh_cdata != self._ffi.NULL)
             dh_cdata = self._ffi.gc(dh_cdata, self._lib.DH_free)
             return _DHPublicKey(self, dh_cdata, evp_pkey)
+        elif key_type == getattr(self._lib, "EVP_PKEY_ED25519", None):
+            # EVP_PKEY_ED25519 is not present in OpenSSL < 1.1.1
+            return _Ed25519PublicKey(self, evp_pkey)
+        elif key_type == getattr(self._lib, "EVP_PKEY_X448", None):
+            # EVP_PKEY_X448 is not present in OpenSSL < 1.1.1
+            return _X448PublicKey(self, evp_pkey)
+        elif key_type == getattr(self._lib, "EVP_PKEY_X25519", None):
+            # EVP_PKEY_X25519 is not present in OpenSSL < 1.1.0
+            return _X25519PublicKey(self, evp_pkey)
+        elif key_type == getattr(self._lib, "EVP_PKEY_ED448", None):
+            # EVP_PKEY_X25519 is not present in OpenSSL < 1.1.1
+            return _Ed448PublicKey(self, evp_pkey)
         else:
             raise UnsupportedAlgorithm("Unsupported key type.")
 
@@ -545,7 +617,11 @@ class Backend(object):
         elif isinstance(padding, OAEP) and isinstance(padding._mgf, MGF1):
             return (
                 self._oaep_hash_supported(padding._mgf._algorithm) and
-                self._oaep_hash_supported(padding._algorithm)
+                self._oaep_hash_supported(padding._algorithm) and
+                (
+                    (padding._label is None or len(padding._label) == 0) or
+                    self._lib.Cryptography_HAS_RSA_OAEP_LABEL == 1
+                )
             )
         else:
             return False
@@ -649,25 +725,35 @@ class Backend(object):
         return True
 
     def cmac_algorithm_supported(self, algorithm):
-        return (
-            self._lib.Cryptography_HAS_CMAC == 1 and
-            self.cipher_supported(
-                algorithm, CBC(b"\x00" * algorithm.block_size)
-            )
+        return self.cipher_supported(
+            algorithm, CBC(b"\x00" * algorithm.block_size)
         )
 
     def create_cmac_ctx(self, algorithm):
         return _CMACContext(self, algorithm)
 
     def create_x509_csr(self, builder, private_key, algorithm):
-        if not isinstance(algorithm, hashes.HashAlgorithm):
+        if not isinstance(builder, x509.CertificateSigningRequestBuilder):
+            raise TypeError('Builder type mismatch.')
+
+        if isinstance(private_key,
+                      (ed25519.Ed25519PrivateKey, ed448.Ed448PrivateKey)):
+            if algorithm is not None:
+                raise ValueError(
+                    "algorithm must be None when signing via ed25519 or ed448"
+                )
+        elif not isinstance(algorithm, hashes.HashAlgorithm):
             raise TypeError('Algorithm must be a registered hash algorithm.')
+        elif (
+            isinstance(algorithm, hashes.MD5) and not
+            isinstance(private_key, rsa.RSAPrivateKey)
+        ):
+            raise ValueError(
+                "MD5 is not a supported hash algorithm for EC/DSA CSRs"
+            )
 
         # Resolve the signature algorithm.
-        evp_md = self._lib.EVP_get_digestbyname(
-            algorithm.name.encode('ascii')
-        )
-        self.openssl_assert(evp_md != self._ffi.NULL)
+        evp_md = self._evp_md_x509_null_if_eddsa(private_key, algorithm)
 
         # Create an empty request.
         x509_req = self._lib.X509_REQ_new()
@@ -695,10 +781,15 @@ class Backend(object):
         sk_extension = self._lib.sk_X509_EXTENSION_new_null()
         self.openssl_assert(sk_extension != self._ffi.NULL)
         sk_extension = self._ffi.gc(
-            sk_extension, self._lib.sk_X509_EXTENSION_free
+            sk_extension,
+            lambda x: self._lib.sk_X509_EXTENSION_pop_free(
+                x, self._ffi.addressof(
+                    self._lib._original_lib, "X509_EXTENSION_free"
+                )
+            )
         )
-        # gc is not necessary for CSRs, as sk_X509_EXTENSION_free
-        # will release all the X509_EXTENSIONs.
+        # Don't GC individual extensions because the memory is owned by
+        # sk_extensions and will be freed along with it.
         self._create_x509_extensions(
             extensions=builder._extensions,
             handlers=_EXTENSION_ENCODE_HANDLERS,
@@ -715,10 +806,13 @@ class Backend(object):
         )
         if res == 0:
             errors = self._consume_errors()
-            self.openssl_assert(errors[0][1] == self._lib.ERR_LIB_RSA)
             self.openssl_assert(
-                errors[0][3] == self._lib.RSA_R_DIGEST_TOO_BIG_FOR_RSA_KEY
+                errors[0]._lib_reason_match(
+                    self._lib.ERR_LIB_RSA,
+                    self._lib.RSA_R_DIGEST_TOO_BIG_FOR_RSA_KEY
+                )
             )
+
             raise ValueError("Digest too big for RSA key")
 
         return _CertificateSigningRequest(self, x509_req)
@@ -726,14 +820,25 @@ class Backend(object):
     def create_x509_certificate(self, builder, private_key, algorithm):
         if not isinstance(builder, x509.CertificateBuilder):
             raise TypeError('Builder type mismatch.')
-        if not isinstance(algorithm, hashes.HashAlgorithm):
+        if isinstance(private_key,
+                      (ed25519.Ed25519PrivateKey, ed448.Ed448PrivateKey)):
+            if algorithm is not None:
+                raise ValueError(
+                    "algorithm must be None when signing via ed25519 or ed448"
+                )
+        elif not isinstance(algorithm, hashes.HashAlgorithm):
             raise TypeError('Algorithm must be a registered hash algorithm.')
 
+        if (
+            isinstance(algorithm, hashes.MD5) and not
+            isinstance(private_key, rsa.RSAPrivateKey)
+        ):
+            raise ValueError(
+                "MD5 is only (reluctantly) supported for RSA certificates"
+            )
+
         # Resolve the signature algorithm.
-        evp_md = self._lib.EVP_get_digestbyname(
-            algorithm.name.encode('ascii')
-        )
-        self.openssl_assert(evp_md != self._ffi.NULL)
+        evp_md = self._evp_md_x509_null_if_eddsa(private_key, algorithm)
 
         # Create an empty certificate.
         x509_cert = self._lib.X509_new()
@@ -761,20 +866,14 @@ class Backend(object):
         self.openssl_assert(res == 1)
 
         # Set the "not before" time.
-        res = self._lib.ASN1_TIME_set(
-            self._lib.X509_get_notBefore(x509_cert),
-            calendar.timegm(builder._not_valid_before.timetuple())
+        self._set_asn1_time(
+            self._lib.X509_getm_notBefore(x509_cert), builder._not_valid_before
         )
-        if res == self._ffi.NULL:
-            self._raise_time_set_error()
 
         # Set the "not after" time.
-        res = self._lib.ASN1_TIME_set(
-            self._lib.X509_get_notAfter(x509_cert),
-            calendar.timegm(builder._not_valid_after.timetuple())
+        self._set_asn1_time(
+            self._lib.X509_getm_notAfter(x509_cert), builder._not_valid_after
         )
-        if res == self._ffi.NULL:
-            self._raise_time_set_error()
 
         # Add extensions.
         self._create_x509_extensions(
@@ -797,35 +896,60 @@ class Backend(object):
         )
         if res == 0:
             errors = self._consume_errors()
-            self.openssl_assert(errors[0][1] == self._lib.ERR_LIB_RSA)
             self.openssl_assert(
-                errors[0][3] == self._lib.RSA_R_DIGEST_TOO_BIG_FOR_RSA_KEY
+                errors[0]._lib_reason_match(
+                    self._lib.ERR_LIB_RSA,
+                    self._lib.RSA_R_DIGEST_TOO_BIG_FOR_RSA_KEY
+                )
             )
             raise ValueError("Digest too big for RSA key")
 
         return _Certificate(self, x509_cert)
 
-    def _raise_time_set_error(self):
-        errors = self._consume_errors()
-        self.openssl_assert(errors[0][1] == self._lib.ERR_LIB_ASN1)
-        self.openssl_assert(
-            errors[0][3] == self._lib.ASN1_R_ERROR_GETTING_TIME
-        )
-        raise ValueError(
-            "Invalid time. This error can occur if you set a time too far in "
-            "the future on Windows."
-        )
+    def _evp_md_x509_null_if_eddsa(self, private_key, algorithm):
+        if isinstance(private_key,
+                      (ed25519.Ed25519PrivateKey, ed448.Ed448PrivateKey)):
+            # OpenSSL requires us to pass NULL for EVP_MD for ed25519/ed448
+            return self._ffi.NULL
+        else:
+            return self._evp_md_non_null_from_algorithm(algorithm)
+
+    def _set_asn1_time(self, asn1_time, time):
+        if time.year >= 2050:
+            asn1_str = time.strftime('%Y%m%d%H%M%SZ').encode('ascii')
+        else:
+            asn1_str = time.strftime('%y%m%d%H%M%SZ').encode('ascii')
+        res = self._lib.ASN1_TIME_set_string(asn1_time, asn1_str)
+        self.openssl_assert(res == 1)
+
+    def _create_asn1_time(self, time):
+        asn1_time = self._lib.ASN1_TIME_new()
+        self.openssl_assert(asn1_time != self._ffi.NULL)
+        asn1_time = self._ffi.gc(asn1_time, self._lib.ASN1_TIME_free)
+        self._set_asn1_time(asn1_time, time)
+        return asn1_time
 
     def create_x509_crl(self, builder, private_key, algorithm):
         if not isinstance(builder, x509.CertificateRevocationListBuilder):
             raise TypeError('Builder type mismatch.')
-        if not isinstance(algorithm, hashes.HashAlgorithm):
+        if isinstance(private_key,
+                      (ed25519.Ed25519PrivateKey, ed448.Ed448PrivateKey)):
+            if algorithm is not None:
+                raise ValueError(
+                    "algorithm must be None when signing via ed25519 or ed448"
+                )
+        elif not isinstance(algorithm, hashes.HashAlgorithm):
             raise TypeError('Algorithm must be a registered hash algorithm.')
 
-        evp_md = self._lib.EVP_get_digestbyname(
-            algorithm.name.encode('ascii')
-        )
-        self.openssl_assert(evp_md != self._ffi.NULL)
+        if (
+            isinstance(algorithm, hashes.MD5) and not
+            isinstance(private_key, rsa.RSAPrivateKey)
+        ):
+            raise ValueError(
+                "MD5 is not a supported hash algorithm for EC/DSA CRLs"
+            )
+
+        evp_md = self._evp_md_x509_null_if_eddsa(private_key, algorithm)
 
         # Create an empty CRL.
         x509_crl = self._lib.X509_CRL_new()
@@ -842,20 +966,12 @@ class Backend(object):
         self.openssl_assert(res == 1)
 
         # Set the last update time.
-        last_update = self._lib.ASN1_TIME_set(
-            self._ffi.NULL, calendar.timegm(builder._last_update.timetuple())
-        )
-        self.openssl_assert(last_update != self._ffi.NULL)
-        last_update = self._ffi.gc(last_update, self._lib.ASN1_TIME_free)
+        last_update = self._create_asn1_time(builder._last_update)
         res = self._lib.X509_CRL_set_lastUpdate(x509_crl, last_update)
         self.openssl_assert(res == 1)
 
         # Set the next update time.
-        next_update = self._lib.ASN1_TIME_set(
-            self._ffi.NULL, calendar.timegm(builder._next_update.timetuple())
-        )
-        self.openssl_assert(next_update != self._ffi.NULL)
-        next_update = self._ffi.gc(next_update, self._lib.ASN1_TIME_free)
+        next_update = self._create_asn1_time(builder._next_update)
         res = self._lib.X509_CRL_set_nextUpdate(x509_crl, next_update)
         self.openssl_assert(res == 1)
 
@@ -884,9 +1000,11 @@ class Backend(object):
         )
         if res == 0:
             errors = self._consume_errors()
-            self.openssl_assert(errors[0][1] == self._lib.ERR_LIB_RSA)
             self.openssl_assert(
-                errors[0][3] == self._lib.RSA_R_DIGEST_TOO_BIG_FOR_RSA_KEY
+                errors[0]._lib_reason_match(
+                    self._lib.ERR_LIB_RSA,
+                    self._lib.RSA_R_DIGEST_TOO_BIG_FOR_RSA_KEY
+                )
             )
             raise ValueError("Digest too big for RSA key")
 
@@ -907,24 +1025,35 @@ class Backend(object):
             res = add_func(x509_obj, x509_extension, i)
             self.openssl_assert(res >= 1)
 
+    def _create_raw_x509_extension(self, extension, value):
+        obj = _txt2obj_gc(self, extension.oid.dotted_string)
+        return self._lib.X509_EXTENSION_create_by_OBJ(
+            self._ffi.NULL, obj, 1 if extension.critical else 0, value
+        )
+
     def _create_x509_extension(self, handlers, extension):
         if isinstance(extension.value, x509.UnrecognizedExtension):
-            obj = _txt2obj_gc(self, extension.oid.dotted_string)
-            value = _encode_asn1_str_gc(
-                self, extension.value.value, len(extension.value.value)
+            value = _encode_asn1_str_gc(self, extension.value.value)
+            return self._create_raw_x509_extension(extension, value)
+        elif isinstance(extension.value, x509.TLSFeature):
+            asn1 = encode_der(
+                SEQUENCE,
+                *[
+                    encode_der(INTEGER, encode_der_integer(x.value))
+                    for x in extension.value
+                ]
             )
-            return self._lib.X509_EXTENSION_create_by_OBJ(
-                self._ffi.NULL,
-                obj,
-                1 if extension.critical else 0,
-                value
-            )
+            value = _encode_asn1_str_gc(self, asn1)
+            return self._create_raw_x509_extension(extension, value)
+        elif isinstance(extension.value, x509.PrecertPoison):
+            value = _encode_asn1_str_gc(self, encode_der(NULL))
+            return self._create_raw_x509_extension(extension, value)
         else:
             try:
                 encode = handlers[extension.oid]
             except KeyError:
                 raise NotImplementedError(
-                    'Extension not supported: {0}'.format(extension.oid)
+                    'Extension not supported: {}'.format(extension.oid)
                 )
 
             ext_struct = encode(self, extension.value)
@@ -948,12 +1077,7 @@ class Backend(object):
             x509_revoked, serial_number
         )
         self.openssl_assert(res == 1)
-        rev_date = self._lib.ASN1_TIME_set(
-            self._ffi.NULL,
-            calendar.timegm(builder._revocation_date.timetuple())
-        )
-        self.openssl_assert(rev_date != self._ffi.NULL)
-        rev_date = self._ffi.gc(rev_date, self._lib.ASN1_TIME_free)
+        rev_date = self._create_asn1_time(builder._revocation_date)
         res = self._lib.X509_REVOKED_set_revocationDate(x509_revoked, rev_date)
         self.openssl_assert(res == 1)
         # add CRL entry extensions
@@ -998,6 +1122,17 @@ class Backend(object):
                 return _RSAPublicKey(self, rsa_cdata, evp_pkey)
             else:
                 self._handle_key_loading_error()
+
+    def load_pem_parameters(self, data):
+        mem_bio = self._bytes_to_bio(data)
+        # only DH is supported currently
+        dh_cdata = self._lib.PEM_read_bio_DHparams(
+            mem_bio.bio, self._ffi.NULL, self._ffi.NULL, self._ffi.NULL)
+        if dh_cdata != self._ffi.NULL:
+            dh_cdata = self._ffi.gc(dh_cdata, self._lib.DH_free)
+            return _DHParameters(self, dh_cdata)
+        else:
+            self._handle_key_loading_error()
 
     def load_der_private_key(self, data, password):
         # OpenSSL has a function called d2i_AutoPrivateKey that in theory
@@ -1055,6 +1190,28 @@ class Backend(object):
             else:
                 self._handle_key_loading_error()
 
+    def load_der_parameters(self, data):
+        mem_bio = self._bytes_to_bio(data)
+        dh_cdata = self._lib.d2i_DHparams_bio(
+            mem_bio.bio, self._ffi.NULL
+        )
+        if dh_cdata != self._ffi.NULL:
+            dh_cdata = self._ffi.gc(dh_cdata, self._lib.DH_free)
+            return _DHParameters(self, dh_cdata)
+        elif self._lib.Cryptography_HAS_EVP_PKEY_DHX:
+            # We check to see if the is dhx.
+            self._consume_errors()
+            res = self._lib.BIO_reset(mem_bio.bio)
+            self.openssl_assert(res == 1)
+            dh_cdata = self._lib.Cryptography_d2i_DHxparams_bio(
+                mem_bio.bio, self._ffi.NULL
+            )
+            if dh_cdata != self._ffi.NULL:
+                dh_cdata = self._ffi.gc(dh_cdata, self._lib.DH_free)
+                return _DHParameters(self, dh_cdata)
+
+        self._handle_key_loading_error()
+
     def load_pem_x509_certificate(self, data):
         mem_bio = self._bytes_to_bio(data)
         x509 = self._lib.PEM_read_bio_X509(
@@ -1062,7 +1219,10 @@ class Backend(object):
         )
         if x509 == self._ffi.NULL:
             self._consume_errors()
-            raise ValueError("Unable to load certificate")
+            raise ValueError(
+                "Unable to load certificate. See https://cryptography.io/en/la"
+                "test/faq/#why-can-t-i-import-my-pem-file for more details."
+            )
 
         x509 = self._ffi.gc(x509, self._lib.X509_free)
         return _Certificate(self, x509)
@@ -1084,7 +1244,10 @@ class Backend(object):
         )
         if x509_crl == self._ffi.NULL:
             self._consume_errors()
-            raise ValueError("Unable to load CRL")
+            raise ValueError(
+                "Unable to load CRL. See https://cryptography.io/en/la"
+                "test/faq/#why-can-t-i-import-my-pem-file for more details."
+            )
 
         x509_crl = self._ffi.gc(x509_crl, self._lib.X509_CRL_free)
         return _CertificateRevocationList(self, x509_crl)
@@ -1106,7 +1269,10 @@ class Backend(object):
         )
         if x509_req == self._ffi.NULL:
             self._consume_errors()
-            raise ValueError("Unable to load request")
+            raise ValueError(
+                "Unable to load request. See https://cryptography.io/en/la"
+                "test/faq/#why-can-t-i-import-my-pem-file for more details."
+            )
 
         x509_req = self._ffi.gc(x509_req, self._lib.X509_REQ_free)
         return _CertificateSigningRequest(self, x509_req)
@@ -1124,13 +1290,11 @@ class Backend(object):
     def _load_key(self, openssl_read_func, convert_func, data, password):
         mem_bio = self._bytes_to_bio(data)
 
-        if password is not None and not isinstance(password, bytes):
-            raise TypeError("Password must be bytes")
-
         userdata = self._ffi.new("CRYPTOGRAPHY_PASSWORD_DATA *")
         if password is not None:
-            password_buf = self._ffi.new("char []", password)
-            userdata.password = password_buf
+            utils._check_byteslike("password", password)
+            password_ptr = self._ffi.from_buffer(password)
+            userdata.password = password_ptr
             userdata.length = len(password)
 
         evp_pkey = openssl_read_func(
@@ -1153,7 +1317,7 @@ class Backend(object):
                 else:
                     assert userdata.error == -2
                     raise ValueError(
-                        "Passwords longer than {0} bytes are not supported "
+                        "Passwords longer than {} bytes are not supported "
                         "by this backend.".format(userdata.maxsize - 1)
                     )
             else:
@@ -1178,31 +1342,21 @@ class Backend(object):
         if not errors:
             raise ValueError("Could not deserialize key data.")
 
-        elif errors[0][1:] in (
-            (
-                self._lib.ERR_LIB_EVP,
-                self._lib.EVP_F_EVP_DECRYPTFINAL_EX,
-                self._lib.EVP_R_BAD_DECRYPT
-            ),
-            (
+        elif (
+            errors[0]._lib_reason_match(
+                self._lib.ERR_LIB_EVP, self._lib.EVP_R_BAD_DECRYPT
+            ) or errors[0]._lib_reason_match(
                 self._lib.ERR_LIB_PKCS12,
-                self._lib.PKCS12_F_PKCS12_PBE_CRYPT,
-                self._lib.PKCS12_R_PKCS12_CIPHERFINAL_ERROR,
+                self._lib.PKCS12_R_PKCS12_CIPHERFINAL_ERROR
             )
         ):
             raise ValueError("Bad decrypt. Incorrect password?")
 
-        elif errors[0][1:] in (
-            (
-                self._lib.ERR_LIB_PEM,
-                self._lib.PEM_F_PEM_GET_EVP_CIPHER_INFO,
-                self._lib.PEM_R_UNSUPPORTED_ENCRYPTION
-            ),
-
-            (
-                self._lib.ERR_LIB_EVP,
-                self._lib.EVP_F_EVP_PBE_CIPHERINIT,
-                self._lib.EVP_R_UNKNOWN_PBE_ALGORITHM
+        elif (
+            errors[0]._lib_reason_match(
+                self._lib.ERR_LIB_EVP, self._lib.EVP_R_UNKNOWN_PBE_ALGORITHM
+            ) or errors[0]._lib_reason_match(
+                self._lib.ERR_LIB_PEM, self._lib.PEM_R_UNSUPPORTED_ENCRYPTION
             )
         ):
             raise UnsupportedAlgorithm(
@@ -1211,9 +1365,8 @@ class Backend(object):
             )
 
         elif any(
-            error[1:] == (
+            error._lib_reason_match(
                 self._lib.ERR_LIB_EVP,
-                self._lib.EVP_F_EVP_PKCS82PKEY,
                 self._lib.EVP_R_UNSUPPORTED_PRIVATE_KEY_ALGORITHM
             )
             for error in errors
@@ -1221,7 +1374,7 @@ class Backend(object):
             raise ValueError("Unsupported public key algorithm.")
 
         else:
-            assert errors[0][1] in (
+            assert errors[0].lib in (
                 self._lib.ERR_LIB_EVP,
                 self._lib.ERR_LIB_PEM,
                 self._lib.ERR_LIB_ASN1,
@@ -1229,38 +1382,31 @@ class Backend(object):
             raise ValueError("Could not deserialize key data.")
 
     def elliptic_curve_supported(self, curve):
-        if self._lib.Cryptography_HAS_EC != 1:
-            return False
-
         try:
             curve_nid = self._elliptic_curve_to_nid(curve)
         except UnsupportedAlgorithm:
             curve_nid = self._lib.NID_undef
 
-        ctx = self._lib.EC_GROUP_new_by_curve_name(curve_nid)
+        group = self._lib.EC_GROUP_new_by_curve_name(curve_nid)
 
-        if ctx == self._ffi.NULL:
+        if group == self._ffi.NULL:
             errors = self._consume_errors()
             self.openssl_assert(
                 curve_nid == self._lib.NID_undef or
-                errors[0][1:] == (
+                errors[0]._lib_reason_match(
                     self._lib.ERR_LIB_EC,
-                    self._lib.EC_F_EC_GROUP_NEW_BY_CURVE_NAME,
                     self._lib.EC_R_UNKNOWN_GROUP
                 )
             )
             return False
         else:
             self.openssl_assert(curve_nid != self._lib.NID_undef)
-            self._lib.EC_GROUP_free(ctx)
+            self._lib.EC_GROUP_free(group)
             return True
 
     def elliptic_curve_signature_algorithm_supported(
         self, signature_algorithm, curve
     ):
-        if self._lib.Cryptography_HAS_EC != 1:
-            return False
-
         # We only support ECDSA right now.
         if not isinstance(signature_algorithm, ec.ECDSA):
             return False
@@ -1273,16 +1419,9 @@ class Backend(object):
         """
 
         if self.elliptic_curve_supported(curve):
-            curve_nid = self._elliptic_curve_to_nid(curve)
-
-            ec_cdata = self._lib.EC_KEY_new_by_curve_name(curve_nid)
-            self.openssl_assert(ec_cdata != self._ffi.NULL)
-            ec_cdata = self._ffi.gc(ec_cdata, self._lib.EC_KEY_free)
+            ec_cdata = self._ec_key_new_by_curve(curve)
 
             res = self._lib.EC_KEY_generate_key(ec_cdata)
-            self.openssl_assert(res == 1)
-
-            res = self._lib.EC_KEY_check_key(ec_cdata)
             self.openssl_assert(res == 1)
 
             evp_pkey = self._ec_cdata_to_evp_pkey(ec_cdata)
@@ -1290,48 +1429,58 @@ class Backend(object):
             return _EllipticCurvePrivateKey(self, ec_cdata, evp_pkey)
         else:
             raise UnsupportedAlgorithm(
-                "Backend object does not support {0}.".format(curve.name),
+                "Backend object does not support {}.".format(curve.name),
                 _Reasons.UNSUPPORTED_ELLIPTIC_CURVE
             )
 
     def load_elliptic_curve_private_numbers(self, numbers):
         public = numbers.public_numbers
 
-        curve_nid = self._elliptic_curve_to_nid(public.curve)
+        ec_cdata = self._ec_key_new_by_curve(public.curve)
 
-        ec_cdata = self._lib.EC_KEY_new_by_curve_name(curve_nid)
-        self.openssl_assert(ec_cdata != self._ffi.NULL)
-        ec_cdata = self._ffi.gc(ec_cdata, self._lib.EC_KEY_free)
+        private_value = self._ffi.gc(
+            self._int_to_bn(numbers.private_value), self._lib.BN_clear_free
+        )
+        res = self._lib.EC_KEY_set_private_key(ec_cdata, private_value)
+        self.openssl_assert(res == 1)
 
         ec_cdata = self._ec_key_set_public_key_affine_coordinates(
             ec_cdata, public.x, public.y)
 
-        res = self._lib.EC_KEY_set_private_key(
-            ec_cdata, self._int_to_bn(numbers.private_value))
-        self.openssl_assert(res == 1)
         evp_pkey = self._ec_cdata_to_evp_pkey(ec_cdata)
 
         return _EllipticCurvePrivateKey(self, ec_cdata, evp_pkey)
 
     def load_elliptic_curve_public_numbers(self, numbers):
-        curve_nid = self._elliptic_curve_to_nid(numbers.curve)
-
-        ec_cdata = self._lib.EC_KEY_new_by_curve_name(curve_nid)
-        self.openssl_assert(ec_cdata != self._ffi.NULL)
-        ec_cdata = self._ffi.gc(ec_cdata, self._lib.EC_KEY_free)
-
+        ec_cdata = self._ec_key_new_by_curve(numbers.curve)
         ec_cdata = self._ec_key_set_public_key_affine_coordinates(
             ec_cdata, numbers.x, numbers.y)
         evp_pkey = self._ec_cdata_to_evp_pkey(ec_cdata)
 
         return _EllipticCurvePublicKey(self, ec_cdata, evp_pkey)
 
-    def derive_elliptic_curve_private_key(self, private_value, curve):
-        curve_nid = self._elliptic_curve_to_nid(curve)
+    def load_elliptic_curve_public_bytes(self, curve, point_bytes):
+        ec_cdata = self._ec_key_new_by_curve(curve)
+        group = self._lib.EC_KEY_get0_group(ec_cdata)
+        self.openssl_assert(group != self._ffi.NULL)
+        point = self._lib.EC_POINT_new(group)
+        self.openssl_assert(point != self._ffi.NULL)
+        point = self._ffi.gc(point, self._lib.EC_POINT_free)
+        with self._tmp_bn_ctx() as bn_ctx:
+            res = self._lib.EC_POINT_oct2point(
+                group, point, point_bytes, len(point_bytes), bn_ctx
+            )
+            if res != 1:
+                self._consume_errors()
+                raise ValueError("Invalid public bytes for the given curve")
 
-        ec_cdata = self._lib.EC_KEY_new_by_curve_name(curve_nid)
-        self.openssl_assert(ec_cdata != self._ffi.NULL)
-        ec_cdata = self._ffi.gc(ec_cdata, self._lib.EC_KEY_free)
+        res = self._lib.EC_KEY_set_public_key(ec_cdata, point)
+        self.openssl_assert(res == 1)
+        evp_pkey = self._ec_cdata_to_evp_pkey(ec_cdata)
+        return _EllipticCurvePublicKey(self, ec_cdata, evp_pkey)
+
+    def derive_elliptic_curve_private_key(self, private_value, curve):
+        ec_cdata = self._ec_key_new_by_curve(curve)
 
         get_func, group = self._ec_key_determine_group_get_func(ec_cdata)
 
@@ -1340,7 +1489,7 @@ class Backend(object):
         point = self._ffi.gc(point, self._lib.EC_POINT_free)
 
         value = self._int_to_bn(private_value)
-        value = self._ffi.gc(value, self._lib.BN_free)
+        value = self._ffi.gc(value, self._lib.BN_clear_free)
 
         with self._tmp_bn_ctx() as bn_ctx:
             res = self._lib.EC_POINT_mul(group, point, value, self._ffi.NULL,
@@ -1355,18 +1504,161 @@ class Backend(object):
 
         res = self._lib.EC_KEY_set_public_key(ec_cdata, point)
         self.openssl_assert(res == 1)
-        res = self._lib.EC_KEY_set_private_key(
-            ec_cdata, self._int_to_bn(private_value))
+        private = self._int_to_bn(private_value)
+        private = self._ffi.gc(private, self._lib.BN_clear_free)
+        res = self._lib.EC_KEY_set_private_key(ec_cdata, private)
         self.openssl_assert(res == 1)
 
         evp_pkey = self._ec_cdata_to_evp_pkey(ec_cdata)
 
         return _EllipticCurvePrivateKey(self, ec_cdata, evp_pkey)
 
+    def _ec_key_new_by_curve(self, curve):
+        curve_nid = self._elliptic_curve_to_nid(curve)
+        ec_cdata = self._lib.EC_KEY_new_by_curve_name(curve_nid)
+        self.openssl_assert(ec_cdata != self._ffi.NULL)
+        return self._ffi.gc(ec_cdata, self._lib.EC_KEY_free)
+
+    def load_der_ocsp_request(self, data):
+        mem_bio = self._bytes_to_bio(data)
+        request = self._lib.d2i_OCSP_REQUEST_bio(mem_bio.bio, self._ffi.NULL)
+        if request == self._ffi.NULL:
+            self._consume_errors()
+            raise ValueError("Unable to load OCSP request")
+
+        request = self._ffi.gc(request, self._lib.OCSP_REQUEST_free)
+        return _OCSPRequest(self, request)
+
+    def load_der_ocsp_response(self, data):
+        mem_bio = self._bytes_to_bio(data)
+        response = self._lib.d2i_OCSP_RESPONSE_bio(mem_bio.bio, self._ffi.NULL)
+        if response == self._ffi.NULL:
+            self._consume_errors()
+            raise ValueError("Unable to load OCSP response")
+
+        response = self._ffi.gc(response, self._lib.OCSP_RESPONSE_free)
+        return _OCSPResponse(self, response)
+
+    def create_ocsp_request(self, builder):
+        ocsp_req = self._lib.OCSP_REQUEST_new()
+        self.openssl_assert(ocsp_req != self._ffi.NULL)
+        ocsp_req = self._ffi.gc(ocsp_req, self._lib.OCSP_REQUEST_free)
+        cert, issuer, algorithm = builder._request
+        evp_md = self._evp_md_non_null_from_algorithm(algorithm)
+        certid = self._lib.OCSP_cert_to_id(
+            evp_md, cert._x509, issuer._x509
+        )
+        self.openssl_assert(certid != self._ffi.NULL)
+        onereq = self._lib.OCSP_request_add0_id(ocsp_req, certid)
+        self.openssl_assert(onereq != self._ffi.NULL)
+        self._create_x509_extensions(
+            extensions=builder._extensions,
+            handlers=_OCSP_REQUEST_EXTENSION_ENCODE_HANDLERS,
+            x509_obj=ocsp_req,
+            add_func=self._lib.OCSP_REQUEST_add_ext,
+            gc=True,
+        )
+        return _OCSPRequest(self, ocsp_req)
+
+    def _create_ocsp_basic_response(self, builder, private_key, algorithm):
+        basic = self._lib.OCSP_BASICRESP_new()
+        self.openssl_assert(basic != self._ffi.NULL)
+        basic = self._ffi.gc(basic, self._lib.OCSP_BASICRESP_free)
+        evp_md = self._evp_md_non_null_from_algorithm(
+            builder._response._algorithm
+        )
+        certid = self._lib.OCSP_cert_to_id(
+            evp_md, builder._response._cert._x509,
+            builder._response._issuer._x509
+        )
+        self.openssl_assert(certid != self._ffi.NULL)
+        certid = self._ffi.gc(certid, self._lib.OCSP_CERTID_free)
+        if builder._response._revocation_reason is None:
+            reason = -1
+        else:
+            reason = _CRL_ENTRY_REASON_ENUM_TO_CODE[
+                builder._response._revocation_reason
+            ]
+        if builder._response._revocation_time is None:
+            rev_time = self._ffi.NULL
+        else:
+            rev_time = self._create_asn1_time(
+                builder._response._revocation_time
+            )
+
+        next_update = self._ffi.NULL
+        if builder._response._next_update is not None:
+            next_update = self._create_asn1_time(
+                builder._response._next_update
+            )
+
+        this_update = self._create_asn1_time(builder._response._this_update)
+
+        res = self._lib.OCSP_basic_add1_status(
+            basic,
+            certid,
+            builder._response._cert_status.value,
+            reason,
+            rev_time,
+            this_update,
+            next_update
+        )
+        self.openssl_assert(res != self._ffi.NULL)
+        # okay, now sign the basic structure
+        evp_md = self._evp_md_x509_null_if_eddsa(private_key, algorithm)
+        responder_cert, responder_encoding = builder._responder_id
+        flags = self._lib.OCSP_NOCERTS
+        if responder_encoding is ocsp.OCSPResponderEncoding.HASH:
+            flags |= self._lib.OCSP_RESPID_KEY
+
+        if builder._certs is not None:
+            for cert in builder._certs:
+                res = self._lib.OCSP_basic_add1_cert(basic, cert._x509)
+                self.openssl_assert(res == 1)
+
+        self._create_x509_extensions(
+            extensions=builder._extensions,
+            handlers=_OCSP_BASICRESP_EXTENSION_ENCODE_HANDLERS,
+            x509_obj=basic,
+            add_func=self._lib.OCSP_BASICRESP_add_ext,
+            gc=True,
+        )
+
+        res = self._lib.OCSP_basic_sign(
+            basic, responder_cert._x509, private_key._evp_pkey,
+            evp_md, self._ffi.NULL, flags
+        )
+        if res != 1:
+            errors = self._consume_errors()
+            self.openssl_assert(
+                errors[0]._lib_reason_match(
+                    self._lib.ERR_LIB_X509,
+                    self._lib.X509_R_KEY_VALUES_MISMATCH
+                )
+            )
+            raise ValueError("responder_cert must be signed by private_key")
+
+        return basic
+
+    def create_ocsp_response(self, response_status, builder, private_key,
+                             algorithm):
+        if response_status is ocsp.OCSPResponseStatus.SUCCESSFUL:
+            basic = self._create_ocsp_basic_response(
+                builder, private_key, algorithm
+            )
+        else:
+            basic = self._ffi.NULL
+
+        ocsp_resp = self._lib.OCSP_response_create(
+            response_status.value, basic
+        )
+        self.openssl_assert(ocsp_resp != self._ffi.NULL)
+        ocsp_resp = self._ffi.gc(ocsp_resp, self._lib.OCSP_RESPONSE_free)
+        return _OCSPResponse(self, ocsp_resp)
+
     def elliptic_curve_exchange_algorithm_supported(self, algorithm, curve):
         return (
             self.elliptic_curve_supported(curve) and
-            self._lib.Cryptography_HAS_ECDH == 1 and
             isinstance(algorithm, ec.ECDH)
         )
 
@@ -1391,7 +1683,7 @@ class Backend(object):
         curve_nid = self._lib.OBJ_sn2nid(curve_name.encode())
         if curve_nid == self._lib.NID_undef:
             raise UnsupportedAlgorithm(
-                "{0} is not a supported elliptic curve".format(curve.name),
+                "{} is not a supported elliptic curve".format(curve.name),
                 _Reasons.UNSUPPORTED_ELLIPTIC_CURVE
             )
         return curve_nid
@@ -1446,9 +1738,9 @@ class Backend(object):
                 "Invalid EC key. Both x and y must be non-negative."
             )
 
-        res = self._lib.EC_KEY_set_public_key_affine_coordinates(
-            ctx, self._int_to_bn(x), self._int_to_bn(y)
-        )
+        x = self._ffi.gc(self._int_to_bn(x), self._lib.BN_free)
+        y = self._ffi.gc(self._int_to_bn(y), self._lib.BN_free)
+        res = self._lib.EC_KEY_set_public_key_affine_coordinates(ctx, x, y)
         if res != 1:
             self._consume_errors()
             raise ValueError("Invalid EC key.")
@@ -1461,6 +1753,20 @@ class Backend(object):
             raise TypeError(
                 "format must be an item from the PrivateFormat enum"
             )
+
+        # X9.62 encoding is only valid for EC public keys
+        if encoding is serialization.Encoding.X962:
+            raise ValueError("X9.62 format is only valid for EC public keys")
+
+        # Raw format and encoding are only valid for X25519, Ed25519, X448, and
+        # Ed448 keys. We capture those cases before this method is called so if
+        # we see those enum values here it means the caller has passed them to
+        # a key that doesn't support raw type
+        if format is serialization.PrivateFormat.Raw:
+            raise ValueError("raw format is invalid with this key or encoding")
+
+        if encoding is serialization.Encoding.Raw:
+            raise ValueError("raw encoding is invalid with this key or format")
 
         if not isinstance(encryption_algorithm,
                           serialization.KeySerializationEncryption):
@@ -1501,7 +1807,6 @@ class Backend(object):
                 elif key_type == self._lib.EVP_PKEY_DSA:
                     write_bio = self._lib.PEM_write_bio_DSAPrivateKey
                 else:
-                    assert self._lib.Cryptography_HAS_EC == 1
                     assert key_type == self._lib.EVP_PKEY_EC
                     write_bio = self._lib.PEM_write_bio_ECPrivateKey
 
@@ -1522,7 +1827,7 @@ class Backend(object):
                 write_bio = self._lib.i2d_PKCS8PrivateKey_bio
                 key = evp_pkey
         else:
-            raise TypeError("encoding must be an item from the Encoding enum")
+            raise TypeError("encoding must be Encoding.PEM or Encoding.DER")
 
         bio = self._create_mem_bio_gc()
         res = write_bio(
@@ -1540,8 +1845,7 @@ class Backend(object):
     def _private_key_bytes_traditional_der(self, key_type, cdata):
         if key_type == self._lib.EVP_PKEY_RSA:
             write_bio = self._lib.i2d_RSAPrivateKey_bio
-        elif (self._lib.Cryptography_HAS_EC == 1 and
-              key_type == self._lib.EVP_PKEY_EC):
+        elif key_type == self._lib.EVP_PKEY_EC:
             write_bio = self._lib.i2d_ECPrivateKey_bio
         else:
             self.openssl_assert(key_type == self._lib.EVP_PKEY_DSA)
@@ -1555,6 +1859,23 @@ class Backend(object):
     def _public_key_bytes(self, encoding, format, key, evp_pkey, cdata):
         if not isinstance(encoding, serialization.Encoding):
             raise TypeError("encoding must be an item from the Encoding enum")
+
+        # Compressed/UncompressedPoint are only valid for EC keys and those
+        # cases are handled by the ECPublicKey public_bytes method before this
+        # method is called
+        if format in (serialization.PublicFormat.UncompressedPoint,
+                      serialization.PublicFormat.CompressedPoint):
+            raise ValueError("Point formats are not valid for this key type")
+
+        # Raw format and encoding are only valid for X25519, Ed25519, X448, and
+        # Ed448 keys. We capture those cases before this method is called so if
+        # we see those enum values here it means the caller has passed them to
+        # a key that doesn't support raw type
+        if format is serialization.PublicFormat.Raw:
+            raise ValueError("raw format is invalid with this key or encoding")
+
+        if encoding is serialization.Encoding.Raw:
+            raise ValueError("raw encoding is invalid with this key or format")
 
         if (
             format is serialization.PublicFormat.OpenSSH or
@@ -1600,22 +1921,28 @@ class Backend(object):
         if isinstance(key, rsa.RSAPublicKey):
             public_numbers = key.public_numbers()
             return b"ssh-rsa " + base64.b64encode(
-                serialization._ssh_write_string(b"ssh-rsa") +
-                serialization._ssh_write_mpint(public_numbers.e) +
-                serialization._ssh_write_mpint(public_numbers.n)
+                ssh._ssh_write_string(b"ssh-rsa") +
+                ssh._ssh_write_mpint(public_numbers.e) +
+                ssh._ssh_write_mpint(public_numbers.n)
             )
         elif isinstance(key, dsa.DSAPublicKey):
             public_numbers = key.public_numbers()
             parameter_numbers = public_numbers.parameter_numbers
             return b"ssh-dss " + base64.b64encode(
-                serialization._ssh_write_string(b"ssh-dss") +
-                serialization._ssh_write_mpint(parameter_numbers.p) +
-                serialization._ssh_write_mpint(parameter_numbers.q) +
-                serialization._ssh_write_mpint(parameter_numbers.g) +
-                serialization._ssh_write_mpint(public_numbers.y)
+                ssh._ssh_write_string(b"ssh-dss") +
+                ssh._ssh_write_mpint(parameter_numbers.p) +
+                ssh._ssh_write_mpint(parameter_numbers.q) +
+                ssh._ssh_write_mpint(parameter_numbers.g) +
+                ssh._ssh_write_mpint(public_numbers.y)
             )
-        else:
-            assert isinstance(key, ec.EllipticCurvePublicKey)
+        elif isinstance(key, ed25519.Ed25519PublicKey):
+            raw_bytes = key.public_bytes(serialization.Encoding.Raw,
+                                         serialization.PublicFormat.Raw)
+            return b"ssh-ed25519 " + base64.b64encode(
+                ssh._ssh_write_string(b"ssh-ed25519") +
+                ssh._ssh_write_string(raw_bytes)
+            )
+        elif isinstance(key, ec.EllipticCurvePublicKey):
             public_numbers = key.public_numbers()
             try:
                 curve_name = {
@@ -1628,11 +1955,50 @@ class Backend(object):
                     "Only SECP256R1, SECP384R1, and SECP521R1 curves are "
                     "supported by the SSH public key format"
                 )
-            return b"ecdsa-sha2-" + curve_name + b" " + base64.b64encode(
-                serialization._ssh_write_string(b"ecdsa-sha2-" + curve_name) +
-                serialization._ssh_write_string(curve_name) +
-                serialization._ssh_write_string(public_numbers.encode_point())
+
+            point = key.public_bytes(
+                serialization.Encoding.X962,
+                serialization.PublicFormat.UncompressedPoint
             )
+            return b"ecdsa-sha2-" + curve_name + b" " + base64.b64encode(
+                ssh._ssh_write_string(b"ecdsa-sha2-" + curve_name) +
+                ssh._ssh_write_string(curve_name) +
+                ssh._ssh_write_string(point)
+            )
+        else:
+            raise ValueError(
+                "OpenSSH encoding is not supported for this key type"
+            )
+
+    def _parameter_bytes(self, encoding, format, cdata):
+        if encoding is serialization.Encoding.OpenSSH:
+            raise TypeError(
+                "OpenSSH encoding is not supported"
+            )
+
+        # Only DH is supported here currently.
+        q = self._ffi.new("BIGNUM **")
+        self._lib.DH_get0_pqg(cdata,
+                              self._ffi.NULL,
+                              q,
+                              self._ffi.NULL)
+        if encoding is serialization.Encoding.PEM:
+            if q[0] != self._ffi.NULL:
+                write_bio = self._lib.PEM_write_bio_DHxparams
+            else:
+                write_bio = self._lib.PEM_write_bio_DHparams
+        elif encoding is serialization.Encoding.DER:
+            if q[0] != self._ffi.NULL:
+                write_bio = self._lib.Cryptography_i2d_DHxparams_bio
+            else:
+                write_bio = self._lib.i2d_DHparams_bio
+        else:
+            raise TypeError("encoding must be an item from the Encoding enum")
+
+        bio = self._create_mem_bio_gc()
+        res = write_bio(bio, cdata)
+        self.openssl_assert(res == 1)
+        return self._read_mem_bio(bio)
 
     def generate_dh_parameters(self, generator, key_size):
         if key_size < 512:
@@ -1703,8 +2069,21 @@ class Backend(object):
         res = self._lib.Cryptography_DH_check(dh_cdata, codes)
         self.openssl_assert(res == 1)
 
-        if codes[0] != 0:
-            raise ValueError("DH private numbers did not pass safety checks.")
+        # DH_check will return DH_NOT_SUITABLE_GENERATOR if p % 24 does not
+        # equal 11 when the generator is 2 (a quadratic nonresidue).
+        # We want to ignore that error because p % 24 == 23 is also fine.
+        # Specifically, g is then a quadratic residue. Within the context of
+        # Diffie-Hellman this means it can only generate half the possible
+        # values. That sounds bad, but quadratic nonresidues leak a bit of
+        # the key to the attacker in exchange for having the full key space
+        # available. See: https://crypto.stackexchange.com/questions/12961
+        if codes[0] != 0 and not (
+            parameter_numbers.g == 2 and
+            codes[0] ^ self._lib.DH_NOT_SUITABLE_GENERATOR == 0
+        ):
+            raise ValueError(
+                "DH private numbers did not pass safety checks."
+            )
 
         evp_pkey = self._dh_cdata_to_evp_pkey(dh_cdata)
 
@@ -1791,14 +2170,309 @@ class Backend(object):
         self.openssl_assert(res > 0)
         return self._ffi.buffer(pp[0], res)[:]
 
+    def x25519_load_public_bytes(self, data):
+        # When we drop support for CRYPTOGRAPHY_OPENSSL_LESS_THAN_111 we can
+        # switch this to EVP_PKEY_new_raw_public_key
+        if len(data) != 32:
+            raise ValueError("An X25519 public key is 32 bytes long")
+
+        evp_pkey = self._create_evp_pkey_gc()
+        res = self._lib.EVP_PKEY_set_type(evp_pkey, self._lib.NID_X25519)
+        backend.openssl_assert(res == 1)
+        res = self._lib.EVP_PKEY_set1_tls_encodedpoint(
+            evp_pkey, data, len(data)
+        )
+        backend.openssl_assert(res == 1)
+        return _X25519PublicKey(self, evp_pkey)
+
+    def x25519_load_private_bytes(self, data):
+        # When we drop support for CRYPTOGRAPHY_OPENSSL_LESS_THAN_111 we can
+        # switch this to EVP_PKEY_new_raw_private_key and drop the
+        # zeroed_bytearray garbage.
+        # OpenSSL only has facilities for loading PKCS8 formatted private
+        # keys using the algorithm identifiers specified in
+        # https://tools.ietf.org/html/draft-ietf-curdle-pkix-09.
+        # This is the standard PKCS8 prefix for a 32 byte X25519 key.
+        # The form is:
+        #    0:d=0  hl=2 l=  46 cons: SEQUENCE
+        #    2:d=1  hl=2 l=   1 prim: INTEGER           :00
+        #    5:d=1  hl=2 l=   5 cons: SEQUENCE
+        #    7:d=2  hl=2 l=   3 prim: OBJECT            :1.3.101.110
+        #    12:d=1  hl=2 l=  34 prim: OCTET STRING      (the key)
+        # Of course there's a bit more complexity. In reality OCTET STRING
+        # contains an OCTET STRING of length 32! So the last two bytes here
+        # are \x04\x20, which is an OCTET STRING of length 32.
+        if len(data) != 32:
+            raise ValueError("An X25519 private key is 32 bytes long")
+
+        pkcs8_prefix = b'0.\x02\x01\x000\x05\x06\x03+en\x04"\x04 '
+        with self._zeroed_bytearray(48) as ba:
+            ba[0:16] = pkcs8_prefix
+            ba[16:] = data
+            bio = self._bytes_to_bio(ba)
+            evp_pkey = backend._lib.d2i_PrivateKey_bio(bio.bio, self._ffi.NULL)
+
+        self.openssl_assert(evp_pkey != self._ffi.NULL)
+        evp_pkey = self._ffi.gc(evp_pkey, self._lib.EVP_PKEY_free)
+        self.openssl_assert(
+            self._lib.EVP_PKEY_id(evp_pkey) == self._lib.EVP_PKEY_X25519
+        )
+        return _X25519PrivateKey(self, evp_pkey)
+
+    def _evp_pkey_keygen_gc(self, nid):
+        evp_pkey_ctx = self._lib.EVP_PKEY_CTX_new_id(nid, self._ffi.NULL)
+        self.openssl_assert(evp_pkey_ctx != self._ffi.NULL)
+        evp_pkey_ctx = self._ffi.gc(evp_pkey_ctx, self._lib.EVP_PKEY_CTX_free)
+        res = self._lib.EVP_PKEY_keygen_init(evp_pkey_ctx)
+        self.openssl_assert(res == 1)
+        evp_ppkey = self._ffi.new("EVP_PKEY **")
+        res = self._lib.EVP_PKEY_keygen(evp_pkey_ctx, evp_ppkey)
+        self.openssl_assert(res == 1)
+        self.openssl_assert(evp_ppkey[0] != self._ffi.NULL)
+        evp_pkey = self._ffi.gc(evp_ppkey[0], self._lib.EVP_PKEY_free)
+        return evp_pkey
+
+    def x25519_generate_key(self):
+        evp_pkey = self._evp_pkey_keygen_gc(self._lib.NID_X25519)
+        return _X25519PrivateKey(self, evp_pkey)
+
+    def x25519_supported(self):
+        return self._lib.CRYPTOGRAPHY_OPENSSL_110_OR_GREATER
+
+    def x448_load_public_bytes(self, data):
+        if len(data) != 56:
+            raise ValueError("An X448 public key is 56 bytes long")
+
+        evp_pkey = self._lib.EVP_PKEY_new_raw_public_key(
+            self._lib.NID_X448, self._ffi.NULL, data, len(data)
+        )
+        self.openssl_assert(evp_pkey != self._ffi.NULL)
+        evp_pkey = self._ffi.gc(evp_pkey, self._lib.EVP_PKEY_free)
+        return _X448PublicKey(self, evp_pkey)
+
+    def x448_load_private_bytes(self, data):
+        if len(data) != 56:
+            raise ValueError("An X448 private key is 56 bytes long")
+
+        data_ptr = self._ffi.from_buffer(data)
+        evp_pkey = self._lib.EVP_PKEY_new_raw_private_key(
+            self._lib.NID_X448, self._ffi.NULL, data_ptr, len(data)
+        )
+        self.openssl_assert(evp_pkey != self._ffi.NULL)
+        evp_pkey = self._ffi.gc(evp_pkey, self._lib.EVP_PKEY_free)
+        return _X448PrivateKey(self, evp_pkey)
+
+    def x448_generate_key(self):
+        evp_pkey = self._evp_pkey_keygen_gc(self._lib.NID_X448)
+        return _X448PrivateKey(self, evp_pkey)
+
+    def x448_supported(self):
+        return not self._lib.CRYPTOGRAPHY_OPENSSL_LESS_THAN_111
+
+    def ed25519_supported(self):
+        return not self._lib.CRYPTOGRAPHY_OPENSSL_LESS_THAN_111B
+
+    def ed25519_load_public_bytes(self, data):
+        utils._check_bytes("data", data)
+
+        if len(data) != ed25519._ED25519_KEY_SIZE:
+            raise ValueError("An Ed25519 public key is 32 bytes long")
+
+        evp_pkey = self._lib.EVP_PKEY_new_raw_public_key(
+            self._lib.NID_ED25519, self._ffi.NULL, data, len(data)
+        )
+        self.openssl_assert(evp_pkey != self._ffi.NULL)
+        evp_pkey = self._ffi.gc(evp_pkey, self._lib.EVP_PKEY_free)
+
+        return _Ed25519PublicKey(self, evp_pkey)
+
+    def ed25519_load_private_bytes(self, data):
+        if len(data) != ed25519._ED25519_KEY_SIZE:
+            raise ValueError("An Ed25519 private key is 32 bytes long")
+
+        utils._check_byteslike("data", data)
+        data_ptr = self._ffi.from_buffer(data)
+        evp_pkey = self._lib.EVP_PKEY_new_raw_private_key(
+            self._lib.NID_ED25519, self._ffi.NULL, data_ptr, len(data)
+        )
+        self.openssl_assert(evp_pkey != self._ffi.NULL)
+        evp_pkey = self._ffi.gc(evp_pkey, self._lib.EVP_PKEY_free)
+
+        return _Ed25519PrivateKey(self, evp_pkey)
+
+    def ed25519_generate_key(self):
+        evp_pkey = self._evp_pkey_keygen_gc(self._lib.NID_ED25519)
+        return _Ed25519PrivateKey(self, evp_pkey)
+
+    def ed448_supported(self):
+        return not self._lib.CRYPTOGRAPHY_OPENSSL_LESS_THAN_111B
+
+    def ed448_load_public_bytes(self, data):
+        utils._check_bytes("data", data)
+        if len(data) != _ED448_KEY_SIZE:
+            raise ValueError("An Ed448 public key is 57 bytes long")
+
+        evp_pkey = self._lib.EVP_PKEY_new_raw_public_key(
+            self._lib.NID_ED448, self._ffi.NULL, data, len(data)
+        )
+        self.openssl_assert(evp_pkey != self._ffi.NULL)
+        evp_pkey = self._ffi.gc(evp_pkey, self._lib.EVP_PKEY_free)
+
+        return _Ed448PublicKey(self, evp_pkey)
+
+    def ed448_load_private_bytes(self, data):
+        utils._check_byteslike("data", data)
+        if len(data) != _ED448_KEY_SIZE:
+            raise ValueError("An Ed448 private key is 57 bytes long")
+
+        data_ptr = self._ffi.from_buffer(data)
+        evp_pkey = self._lib.EVP_PKEY_new_raw_private_key(
+            self._lib.NID_ED448, self._ffi.NULL, data_ptr, len(data)
+        )
+        self.openssl_assert(evp_pkey != self._ffi.NULL)
+        evp_pkey = self._ffi.gc(evp_pkey, self._lib.EVP_PKEY_free)
+
+        return _Ed448PrivateKey(self, evp_pkey)
+
+    def ed448_generate_key(self):
+        evp_pkey = self._evp_pkey_keygen_gc(self._lib.NID_ED448)
+        return _Ed448PrivateKey(self, evp_pkey)
+
     def derive_scrypt(self, key_material, salt, length, n, r, p):
         buf = self._ffi.new("unsigned char[]", length)
+        key_material_ptr = self._ffi.from_buffer(key_material)
         res = self._lib.EVP_PBE_scrypt(
-            key_material, len(key_material), salt, len(salt), n, r, p,
+            key_material_ptr, len(key_material), salt, len(salt), n, r, p,
             scrypt._MEM_LIMIT, buf, length
         )
-        self.openssl_assert(res == 1)
+        if res != 1:
+            errors = self._consume_errors()
+            if not self._lib.CRYPTOGRAPHY_OPENSSL_LESS_THAN_111:
+                # This error is only added to the stack in 1.1.1+
+                self.openssl_assert(
+                    errors[0]._lib_reason_match(
+                        self._lib.ERR_LIB_EVP,
+                        self._lib.ERR_R_MALLOC_FAILURE
+                    ) or
+                    errors[0]._lib_reason_match(
+                        self._lib.ERR_LIB_EVP,
+                        self._lib.EVP_R_MEMORY_LIMIT_EXCEEDED
+                    )
+                )
+
+            # memory required formula explained here:
+            # https://blog.filippo.io/the-scrypt-parameters/
+            min_memory = 128 * n * r // (1024**2)
+            raise MemoryError(
+                "Not enough memory to derive key. These parameters require"
+                " {} MB of memory.".format(min_memory)
+            )
         return self._ffi.buffer(buf)[:]
+
+    def aead_cipher_supported(self, cipher):
+        cipher_name = aead._aead_cipher_name(cipher)
+        return (
+            self._lib.EVP_get_cipherbyname(cipher_name) != self._ffi.NULL
+        )
+
+    @contextlib.contextmanager
+    def _zeroed_bytearray(self, length):
+        """
+        This method creates a bytearray, which we copy data into (hopefully
+        also from a mutable buffer that can be dynamically erased!), and then
+        zero when we're done.
+        """
+        ba = bytearray(length)
+        try:
+            yield ba
+        finally:
+            self._zero_data(ba, length)
+
+    def _zero_data(self, data, length):
+        # We clear things this way because at the moment we're not
+        # sure of a better way that can guarantee it overwrites the
+        # memory of a bytearray and doesn't just replace the underlying char *.
+        for i in range(length):
+            data[i] = 0
+
+    @contextlib.contextmanager
+    def _zeroed_null_terminated_buf(self, data):
+        """
+        This method takes bytes, which can be a bytestring or a mutable
+        buffer like a bytearray, and yields a null-terminated version of that
+        data. This is required because PKCS12_parse doesn't take a length with
+        its password char * and ffi.from_buffer doesn't provide null
+        termination. So, to support zeroing the data via bytearray we
+        need to build this ridiculous construct that copies the memory, but
+        zeroes it after use.
+        """
+        if data is None:
+            yield self._ffi.NULL
+        else:
+            data_len = len(data)
+            buf = self._ffi.new("char[]", data_len + 1)
+            self._ffi.memmove(buf, data, data_len)
+            try:
+                yield buf
+            finally:
+                # Cast to a uint8_t * so we can assign by integer
+                self._zero_data(self._ffi.cast("uint8_t *", buf), data_len)
+
+    def load_key_and_certificates_from_pkcs12(self, data, password):
+        if password is not None:
+            utils._check_byteslike("password", password)
+
+        bio = self._bytes_to_bio(data)
+        p12 = self._lib.d2i_PKCS12_bio(bio.bio, self._ffi.NULL)
+        if p12 == self._ffi.NULL:
+            self._consume_errors()
+            raise ValueError("Could not deserialize PKCS12 data")
+
+        p12 = self._ffi.gc(p12, self._lib.PKCS12_free)
+        evp_pkey_ptr = self._ffi.new("EVP_PKEY **")
+        x509_ptr = self._ffi.new("X509 **")
+        sk_x509_ptr = self._ffi.new("Cryptography_STACK_OF_X509 **")
+        with self._zeroed_null_terminated_buf(password) as password_buf:
+            res = self._lib.PKCS12_parse(
+                p12, password_buf, evp_pkey_ptr, x509_ptr, sk_x509_ptr
+            )
+
+        if res == 0:
+            self._consume_errors()
+            raise ValueError("Invalid password or PKCS12 data")
+
+        cert = None
+        key = None
+        additional_certificates = []
+
+        if evp_pkey_ptr[0] != self._ffi.NULL:
+            evp_pkey = self._ffi.gc(evp_pkey_ptr[0], self._lib.EVP_PKEY_free)
+            key = self._evp_pkey_to_private_key(evp_pkey)
+
+        if x509_ptr[0] != self._ffi.NULL:
+            x509 = self._ffi.gc(x509_ptr[0], self._lib.X509_free)
+            cert = _Certificate(self, x509)
+
+        if sk_x509_ptr[0] != self._ffi.NULL:
+            sk_x509 = self._ffi.gc(sk_x509_ptr[0], self._lib.sk_X509_free)
+            num = self._lib.sk_X509_num(sk_x509_ptr[0])
+            for i in range(num):
+                x509 = self._lib.sk_X509_value(sk_x509, i)
+                x509 = self._ffi.gc(x509, self._lib.X509_free)
+                self.openssl_assert(x509 != self._ffi.NULL)
+                additional_certificates.append(_Certificate(self, x509))
+
+        return (key, cert, additional_certificates)
+
+    def poly1305_supported(self):
+        return self._lib.Cryptography_HAS_POLY1305 == 1
+
+    def create_poly1305_ctx(self, key):
+        utils._check_byteslike("key", key)
+        if len(key) != _POLY1305_KEY_SIZE:
+            raise ValueError("A poly1305 key is 32 bytes long")
+
+        return _Poly1305Context(self, key)
 
 
 class GetCipherByName(object):
@@ -1808,6 +2482,11 @@ class GetCipherByName(object):
     def __call__(self, backend, cipher, mode):
         cipher_name = self._fmt.format(cipher=cipher, mode=mode).lower()
         return backend._lib.EVP_get_cipherbyname(cipher_name.encode("ascii"))
+
+
+def _get_xts_cipher(backend, cipher, mode):
+    cipher_name = "aes-{}-xts".format(cipher.key_size // 2)
+    return backend._lib.EVP_get_cipherbyname(cipher_name.encode("ascii"))
 
 
 backend = Backend()
