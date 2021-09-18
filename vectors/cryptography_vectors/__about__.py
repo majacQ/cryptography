@@ -18,6 +18,9 @@ __summary__ = "Test vectors for the cryptography package."
 
 __uri__ = "https://github.com/pyca/cryptography"
 
+  <<<<<<< 3.2.x
+__version__ = "3.2.1"
+  =======
   <<<<<<< 3.4.x
   <<<<<<< 3.4.x
   <<<<<<< dependabot/github_actions/actions/upload-artifact-v2.2.2
@@ -39,9 +42,14 @@ __version__ = "3.4.8"
   =======
 __version__ = "3.3.2"
   >>>>>>> 3.3.x
+  >>>>>>> 3.3.x
 
 __author__ = "The Python Cryptographic Authority and individual contributors"
 __email__ = "cryptography-dev@python.org"
 
 __license__ = "BSD or Apache License, Version 2.0"
+  <<<<<<< 3.2.x
+__copyright__ = "Copyright 2013-2020 %s" % __author__
+  =======
 __copyright__ = "Copyright 2013-2021 %s" % __author__
+  >>>>>>> 3.3.x

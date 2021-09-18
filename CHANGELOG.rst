@@ -1,6 +1,8 @@
 Changelog
 =========
 
+  <<<<<<< 3.2.x
+  =======
   <<<<<<< 3.4.x
   <<<<<<< 3.4.x
   <<<<<<< dependabot/github_actions/actions/upload-artifact-v2.2.2
@@ -179,6 +181,7 @@ Changelog
   :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`
   for recovering the signed data from an RSA signature.
 
+  >>>>>>> 3.3.x
 .. _v3-2-1:
 
 3.2.1 - 2020-10-27
