@@ -3,85 +3,67 @@
 set -e
 set -x
 
-if [[ "$(uname -s)" == 'Darwin' ]]; then
-    sw_vers
-    brew update || brew update
+SCRIPT_DIR=$(dirname "${BASH_SOURCE[0]}")
 
-    brew outdated openssl || brew upgrade openssl
+shlib_sed() {
+    # modify the shlib version to a unique one to make sure the dynamic
+    # linker doesn't load the system one.
+    sed -i "s/^SHLIB_MAJOR=.*/SHLIB_MAJOR=100/" Makefile
+    sed -i "s/^SHLIB_MINOR=.*/SHLIB_MINOR=0.0/" Makefile
+    sed -i "s/^SHLIB_VERSION_NUMBER=.*/SHLIB_VERSION_NUMBER=100.0.0/" Makefile
+}
 
-    # install pyenv
-    git clone --depth 1 https://github.com/yyuu/pyenv.git ~/.pyenv
-    PYENV_ROOT="$HOME/.pyenv"
-    PATH="$PYENV_ROOT/bin:$PATH"
-    eval "$(pyenv init -)"
-
-    case "${TOXENV}" in
-        py27)
-            curl -O https://bootstrap.pypa.io/get-pip.py
-            python get-pip.py --user
-            ;;
-        py33)
-            pyenv install 3.3.6
-            pyenv global 3.3.6
-            ;;
-        py34)
-            pyenv install 3.4.5
-            pyenv global 3.4.5
-            ;;
-        py35)
-            pyenv install 3.5.2
-            pyenv global 3.5.2
-            ;;
-        pypy*)
-            pyenv install "pypy-$PYPY_VERSION"
-            pyenv global "pypy-$PYPY_VERSION"
-            ;;
-        pypy3)
-            pyenv install pypy3-2.4.0
-            pyenv global pypy3-2.4.0
-            ;;
-        docs)
-            brew install enchant
-            curl -O https://bootstrap.pypa.io/get-pip.py
-            python get-pip.py --user
-            ;;
-    esac
-    pyenv rehash
-    python -m pip install --user virtualenv
-else
-    # temporary pyenv installation to get latest pypy until the travis
-    # container infra is upgraded
-    if [[ "${TOXENV}" = pypy* ]]; then
-        git clone https://github.com/yyuu/pyenv.git ~/.pyenv
-        PYENV_ROOT="$HOME/.pyenv"
-        PATH="$PYENV_ROOT/bin:$PATH"
-        eval "$(pyenv init -)"
-        pyenv install "pypy-$PYPY_VERSION"
-        pyenv global "pypy-$PYPY_VERSION"
-    fi
-
-    # download, compile, and install if it's not already present via travis
-    # cache
-    if [ -n "${OPENSSL}" ]; then
-        OPENSSL_DIR="ossl/${OPENSSL}"
-        if [[ ! -f "$HOME/$OPENSSL_DIR/bin/openssl" ]]; then
-            curl -O https://www.openssl.org/source/openssl-$OPENSSL.tar.gz
-            tar zxf openssl-$OPENSSL.tar.gz
-            cd openssl-$OPENSSL
-            ./config shared no-asm no-ssl2 -fPIC --prefix="$HOME/$OPENSSL_DIR"
-            # modify the shlib version to a unique one to make sure the dynamic
-            # linker doesn't load the system one. This isn't required for 1.1.0 at the
-            # moment since our Travis builders have a diff shlib version, but it doesn't hurt
-            sed -i "s/^SHLIB_MAJOR=.*/SHLIB_MAJOR=100/" Makefile
-            sed -i "s/^SHLIB_MINOR=.*/SHLIB_MINOR=0.0/" Makefile
-            sed -i "s/^SHLIB_VERSION_NUMBER=.*/SHLIB_VERSION_NUMBER=100.0.0/" Makefile
-            make depend
+# download, compile, and install if it's not already present via travis
+# cache
+if [ -n "${OPENSSL}" ]; then
+    . "$SCRIPT_DIR/openssl_config.sh"
+    if [[ ! -f "$HOME/$OPENSSL_DIR/bin/openssl" ]]; then
+        curl -O "https://www.openssl.org/source/openssl-${OPENSSL}.tar.gz"
+        tar zxf "openssl-${OPENSSL}.tar.gz"
+        pushd "openssl-${OPENSSL}"
+        ./config $OPENSSL_CONFIG_FLAGS -fPIC --prefix="$HOME/$OPENSSL_DIR"
+        shlib_sed
+        make depend
+        make -j"$(nproc)"
+        if [[ "${OPENSSL}" =~ 1.0.1 ]]; then
+            # OpenSSL 1.0.1 doesn't support installing without the docs.
             make install
+        else
+            # avoid installing the docs
+            # https://github.com/openssl/openssl/issues/6685#issuecomment-403838728
+            make install_sw install_ssldirs
         fi
+        popd
     fi
-    pip install virtualenv
+elif [ -n "${LIBRESSL}" ]; then
+    LIBRESSL_DIR="ossl-2/${LIBRESSL}"
+    if [[ ! -f "$HOME/$LIBRESSL_DIR/bin/openssl" ]]; then
+        curl -O "https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${LIBRESSL}.tar.gz"
+        tar zxf "libressl-${LIBRESSL}.tar.gz"
+        pushd "libressl-${LIBRESSL}"
+        ./config -Wl -Wl,-Bsymbolic-functions -fPIC shared --prefix="$HOME/$LIBRESSL_DIR"
+        shlib_sed
+        make -j"$(nproc)" install
+        popd
+    fi
 fi
+
+if [ -n "${DOCKER}" ]; then
+    if [ -n "${OPENSSL}" ] || [ -n "${LIBRESSL}" ]; then
+        echo "OPENSSL and LIBRESSL are not allowed when DOCKER is set."
+        exit 1
+    fi
+    docker pull "$DOCKER" || docker pull "$DOCKER" || docker pull "$DOCKER"
+fi
+
+if [ -z "${DOWNSTREAM}" ]; then
+    git clone --depth=1 https://github.com/google/wycheproof "$HOME/wycheproof"
+fi
+
+pip install -U pip
+pip install virtualenv
 
 python -m virtualenv ~/.venv
 source ~/.venv/bin/activate
-pip install tox codecov
+# If we pin coverage it must be kept in sync with tox.ini and azure-pipelines.yml
+pip install tox codecov coverage
