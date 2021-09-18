@@ -16,7 +16,7 @@ If your pytest setup follows the best practices of failing on
 emitted warnings (``filterwarnings = error``), you may ignore it
 by adding the following line at the end of the list::
 
-   ignore:Python 2 is no longer supported by the Python core team. Support for it is now deprecated in cryptography, and will be removed in a future release.:UserWarning:cryptography
+   ignore:Python 2 is no longer supported by the Python core team. Support for it is now deprecated in cryptography, and will be removed in a future release.:UserWarning
 
 **Note:** Using ``cryptography.utils.CryptographyDeprecationWarning``
 is not possible here because specifying it triggers
@@ -70,18 +70,17 @@ legacy libraries:
   :class:`AES-GCM <cryptography.hazmat.primitives.ciphers.modes.GCM>` and
   :class:`~cryptography.hazmat.primitives.kdf.hkdf.HKDF`.
 
-Compiling ``cryptography`` on macOS produces a ``fatal error: 'openssl/aes.h' file not found`` error
-----------------------------------------------------------------------------------------------------
+Installing ``cryptography`` produces a ``fatal error: 'openssl/opensslv.h' file not found`` error
+-------------------------------------------------------------------------------------------------
 
-This happens because macOS 10.11 no longer includes a copy of OpenSSL.
-``cryptography`` now provides wheels which include a statically linked copy of
-OpenSSL. You're seeing this error because your copy of pip is too old to find
-our wheel files. Upgrade your copy of pip with ``pip install -U pip`` and then
-try install ``cryptography`` again.
+``cryptography`` provides wheels which include a statically linked copy of
+OpenSSL. If you see this error it is likely because your copy of ``pip`` is too
+old to find our wheel files. Upgrade your ``pip`` with ``pip install -U pip``
+and then try to install ``cryptography`` again.
 
-If you are using PyPy, we do not currently ship ``cryptography`` wheels for
-PyPy. You will need to install your own copy of OpenSSL -- we recommend using
-Homebrew.
+Users on PyPy, unusual CPU architectures, or distributions of Linux using
+``musl`` (like Alpine) will need to compile ``cryptography`` themselves. Please
+view our :doc:`/installation` documentation.
 
 ``cryptography`` raised an ``InternalError`` and I'm not sure what to do?
 -------------------------------------------------------------------------
@@ -109,35 +108,50 @@ Your ``pip`` and/or ``setuptools`` are outdated. Please upgrade to the latest
 versions with ``pip install -U pip setuptools`` (or on Windows
 ``python -m pip install -U pip setuptools``).
 
-Importing cryptography causes a ``RuntimeError`` about OpenSSL 1.0.2
---------------------------------------------------------------------
+Installing cryptography with OpenSSL 0.9.8, 1.0.0, 1.0.1, 1.0.2 fails
+---------------------------------------------------------------------
 
-The OpenSSL project has dropped support for the 1.0.2 release series. Since it
-is no longer receiving security patches from upstream, ``cryptography`` is also
-dropping support for it. To fix this issue you should upgrade to a newer
-version of OpenSSL (1.1.0 or later). This may require you to upgrade to a newer
-operating system.
+The OpenSSL project has dropped support for the 0.9.8, 1.0.0, 1.0.1, and 1.0.2
+release series. Since they are no longer receiving security patches from
+upstream, ``cryptography`` is also dropping support for them. To fix this issue
+you should upgrade to a newer version of OpenSSL (1.1.0 or later). This may
+require you to upgrade to a newer operating system.
 
-For the 3.2 release, you can set the ``CRYPTOGRAPHY_ALLOW_OPENSSL_102``
-environment variable. Please note that this is *temporary* and will be removed
-in ``cryptography`` 3.3.
+Installing ``cryptography`` fails with ``error: Can not find Rust compiler``
+----------------------------------------------------------------------------
 
-Installing cryptography with OpenSSL 0.9.8, 1.0.0, 1.0.1 fails
---------------------------------------------------------------
+Building ``cryptography`` from source requires you have :ref:`Rust installed
+and available<installation:Rust>` on your ``PATH``. You may be able to fix this
+by upgrading to a newer version of ``pip`` which will install a pre-compiled
+``cryptography`` wheel. If not, you'll need to install Rust. Follow the
+:ref:`instructions<installation:Rust>` to ensure you install a recent Rust
+version.
 
-The OpenSSL project has dropped support for the 0.9.8, 1.0.0, and 1.0.1 release
-series. Since they are no longer receiving security patches from upstream,
-``cryptography`` is also dropping support for them. To fix this issue you
-should upgrade to a newer version of OpenSSL (1.0.2 or later). This may require
-you to upgrade to a newer operating system.
+  <<<<<<< dependabot/github_actions/actions/upload-artifact-v2.2.2
+  =======
+  <<<<<<< circleci-project-setup
+  >>>>>>> 3.4.x
+Rust is only required during the build phase of ``cryptography``, you do not
+need to have Rust installed after you've built ``cryptography``. This is the
+same as the C compiler toolchain which is also required to build
+``cryptography``, but not afterwards.
+  <<<<<<< dependabot/github_actions/actions/upload-artifact-v2.2.2
+  =======
+  =======
+For the current release *only* you can temporarily bypass the requirement to
+have Rust installed by setting the ``CRYPTOGRAPHY_DONT_BUILD_RUST`` environment
+variable. Note that this option will be removed in the next release and not
+having Rust available will be a hard error.
+  >>>>>>> 3.4.x
+  >>>>>>> 3.4.x
 
-Why are there no wheels for Python 3.6+ on Linux or macOS?
-----------------------------------------------------------
+Why are there no wheels for my Python3.x version?
+-------------------------------------------------
 
-Our Python3 wheels, for macOS and Linux, are ``abi3`` wheels. This means they
-support multiple versions of Python. The Python 3.5 ``abi3`` wheel can be used
-with any version of Python greater than or equal to 3.5. Recent versions of
-``pip`` will automatically install ``abi3`` wheels.
+Our Python3 wheels are ``abi3`` wheels. This means they support multiple
+versions of Python. The ``abi3`` wheel can be used with any version of Python
+greater than or equal to the version it specifies. Recent versions of ``pip``
+will automatically install ``abi3`` wheels.
 
 Why can't I import my PEM file?
 -------------------------------

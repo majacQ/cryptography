@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import itertools
 import os
@@ -14,7 +13,6 @@ import pytest
 
 from cryptography import x509
 from cryptography.exceptions import InternalError, _Reasons
-from cryptography.hazmat.backends.interfaces import DHBackend, RSABackend
 from cryptography.hazmat.backends.openssl.backend import Backend, backend
 from cryptography.hazmat.backends.openssl.ec import _sn_to_elliptic_curve
 from cryptography.hazmat.primitives import hashes, serialization
@@ -39,17 +37,17 @@ from ...x509.test_x509 import _load_cert
 
 
 def skip_if_libre_ssl(openssl_version):
-    if u"LibreSSL" in openssl_version:
+    if "LibreSSL" in openssl_version:
         pytest.skip("LibreSSL hard-codes RAND_bytes to use arc4random.")
 
 
 class TestLibreSkip(object):
     def test_skip_no(self):
-        assert skip_if_libre_ssl(u"OpenSSL 1.0.2h  3 May 2016") is None
+        assert skip_if_libre_ssl("OpenSSL 1.0.2h  3 May 2016") is None
 
     def test_skip_yes(self):
         with pytest.raises(pytest.skip.Exception):
-            skip_if_libre_ssl(u"LibreSSL 2.1.6")
+            skip_if_libre_ssl("LibreSSL 2.1.6")
 
 
 class DummyMGF(object):
@@ -126,11 +124,6 @@ class TestOpenSSL(object):
     def test_evp_ciphers_registered(self):
         cipher = backend._lib.EVP_get_cipherbyname(b"aes-256-cbc")
         assert cipher != backend._ffi.NULL
-
-    def test_error_strings_loaded(self):
-        buf = backend._ffi.new("char[]", 256)
-        backend._lib.ERR_error_string_n(101183626, buf, len(buf))
-        assert b"data not multiple of block length" in backend._ffi.string(buf)
 
     def test_unknown_error_in_cipher_finalize(self):
         cipher = Cipher(AES(b"\0" * 16), CBC(b"\0" * 16), backend=backend)
@@ -413,7 +406,9 @@ class TestOpenSSLRSA(object):
         assert (
             backend.rsa_padding_supported(
                 padding.OAEP(
-                    mgf=DummyMGF(), algorithm=hashes.SHA1(), label=None
+                    mgf=DummyMGF(),  # type: ignore[arg-type]
+                    algorithm=hashes.SHA1(),
+                    label=None,
                 ),
             )
             is False
@@ -483,7 +478,20 @@ class TestOpenSSLSignX509Certificate(object):
 
         with pytest.raises(TypeError):
             backend.create_x509_certificate(
-                object(), private_key, DummyHashAlgorithm()
+                object(),  # type: ignore[arg-type]
+                private_key,
+                DummyHashAlgorithm(),
+            )
+
+    def test_builder_requires_public_key(self):
+        builder = x509.CertificateBuilder()
+        private_key = RSA_KEY_2048.private_key(backend)
+
+        with pytest.raises(TypeError):
+            backend.create_x509_certificate(
+                builder,
+                private_key,
+                DummyHashAlgorithm(),
             )
 
 
@@ -493,7 +501,9 @@ class TestOpenSSLSignX509CSR(object):
 
         with pytest.raises(TypeError):
             backend.create_x509_csr(
-                object(), private_key, DummyHashAlgorithm()
+                object(),  # type: ignore[arg-type]
+                private_key,
+                DummyHashAlgorithm(),
             )
 
 
@@ -502,13 +512,19 @@ class TestOpenSSLSignX509CertificateRevocationList(object):
         private_key = RSA_KEY_2048.private_key(backend)
 
         with pytest.raises(TypeError):
-            backend.create_x509_crl(object(), private_key, hashes.SHA256())
+            backend.create_x509_crl(
+                object(),  # type: ignore[arg-type]
+                private_key,
+                hashes.SHA256(),
+            )
 
 
 class TestOpenSSLCreateRevokedCertificate(object):
     def test_invalid_builder(self):
         with pytest.raises(TypeError):
-            backend.create_x509_revoked_certificate(object())
+            backend.create_x509_revoked_certificate(
+                object()  # type: ignore[arg-type]
+            )
 
 
 class TestOpenSSLSerializationWithOpenSSL(object):
@@ -570,7 +586,6 @@ class TestOpenSSLEllipticCurve(object):
             _sn_to_elliptic_curve(backend, b"fake")
 
 
-@pytest.mark.requires_backend_interface(interface=RSABackend)
 class TestRSAPEMSerialization(object):
     def test_password_length_limit(self):
         password = b"x" * 1024
@@ -590,7 +605,7 @@ class TestGOSTCertificate(object):
             x509.load_der_x509_certificate,
             backend,
         )
-        if backend._lib.CRYPTOGRAPHY_OPENSSL_LESS_THAN_102I:
+        if backend._lib.CRYPTOGRAPHY_IS_LIBRESSL:
             with pytest.raises(ValueError) as exc:
                 cert.subject
 
@@ -611,7 +626,6 @@ class TestGOSTCertificate(object):
     backend._lib.Cryptography_HAS_EVP_PKEY_DHX == 1,
     reason="Requires OpenSSL without EVP_PKEY_DHX (< 1.0.2)",
 )
-@pytest.mark.requires_backend_interface(interface=DHBackend)
 class TestOpenSSLDHSerialization(object):
     @pytest.mark.parametrize(
         "vector",

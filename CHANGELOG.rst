@@ -1,6 +1,187 @@
 Changelog
 =========
 
+  <<<<<<< 3.2.x
+  =======
+  <<<<<<< 3.4.x
+  <<<<<<< 3.4.x
+  <<<<<<< dependabot/github_actions/actions/upload-artifact-v2.2.2
+  <<<<<<< 3.1.x
+  =======
+  =======
+  <<<<<<< circleci-project-setup
+  >>>>>>> 3.4.x
+.. _v35-0-0:
+
+35.0.0 - `main`_
+~~~~~~~~~~~~~~~~
+
+ .. note:: This version is not yet released and is under active development.
+
+* Added support for
+  :class:`~cryptography.hazmat.primitives.hashes.SM3` and
+  :class:`~cryptography.hazmat.primitives.ciphers.algorithms.SM4`,
+  when using OpenSSL 1.1.1. These algorithms are provided for compatibility
+  in regions where they may be required, and are not generally recommended.
+  <<<<<<< dependabot/github_actions/actions/upload-artifact-v2.2.2
+* We now ship ``manylinux_2_24`` wheels, in addition to our ``manylinux2010``
+  and ``manylinux2014`` wheels.
+  =======
+.. _v3-4-8:
+
+3.4.8 - 2021-08-24
+~~~~~~~~~~~~~~~~~~
+
+* Updated Windows, macOS, and ``manylinux`` wheels to be compiled with
+  OpenSSL 1.1.1l.
+  >>>>>>> 3.4.x
+
+.. _v3-4-7:
+
+3.4.7 - 2021-03-25
+~~~~~~~~~~~~~~~~~~
+
+* Updated Windows, macOS, and ``manylinux`` wheels to be compiled with
+  OpenSSL 1.1.1k.
+
+  <<<<<<< 3.4.x
+  =======
+
+  =======
+  >>>>>>> 3.4.x
+  >>>>>>> 3.4.x
+  =======
+  >>>>>>> 3.4.x
+.. _v3-4-6:
+
+3.4.6 - 2021-02-16
+~~~~~~~~~~~~~~~~~~
+
+* Updated Windows, macOS, and ``manylinux`` wheels to be compiled with
+  OpenSSL 1.1.1j.
+
+.. _v3-4-5:
+
+3.4.5 - 2021-02-13
+~~~~~~~~~~~~~~~~~~
+
+* Various improvements to type hints.
+* Lower the minimum supported Rust version (MSRV) to >=1.41.0. This change
+  improves compatibility with system-provided Rust on several Linux
+  distributions.
+* ``cryptography`` will be switching to a new versioning scheme with its next
+  feature release. More information is available in our
+  :doc:`/api-stability` documentation.
+
+.. _v3-4-4:
+
+3.4.4 - 2021-02-09
+~~~~~~~~~~~~~~~~~~
+
+* Added a ``py.typed`` file so that ``mypy`` will know to use our type
+  annotations.
+* Fixed an import cycle that could be triggered by certain import sequences.
+
+.. _v3-4-3:
+
+3.4.3 - 2021-02-08
+~~~~~~~~~~~~~~~~~~
+
+* Specify our supported Rust version (>=1.45.0) in our ``setup.py`` so users
+  on older versions will get a clear error message.
+
+.. _v3-4-2:
+
+3.4.2 - 2021-02-08
+~~~~~~~~~~~~~~~~~~
+
+* Improvements to make the rust transition a bit easier. This includes some
+  better error messages and small dependency fixes. If you experience
+  installation problems **Be sure to update pip** first, then check the
+  :doc:`FAQ </faq>`.
+
+.. _v3-4-1:
+
+3.4.1 - 2021-02-07
+~~~~~~~~~~~~~~~~~~
+
+* Fixed a circular import issue.
+* Added additional debug output to assist users seeing installation errors
+  due to outdated ``pip`` or missing ``rustc``.
+
+.. _v3-4:
+
+3.4 - 2021-02-07
+~~~~~~~~~~~~~~~~
+
+* **BACKWARDS INCOMPATIBLE:** Support for Python 2 has been removed.
+* We now ship ``manylinux2014`` wheels and no longer ship ``manylinux1``
+  wheels. Users should upgrade to the latest ``pip`` to ensure this doesn't
+  cause issues downloading wheels on their platform.
+* ``cryptography`` now incorporates Rust code. Users building ``cryptography``
+  themselves will need to have the Rust toolchain installed. Users who use an
+  officially produced wheel will not need to make any changes. The minimum
+  supported Rust version is 1.45.0.
+* ``cryptography`` now has :pep:`484` type hints on nearly all of of its public
+  APIs. Users can begin using them to type check their code with ``mypy``.
+
+  =======
+  >>>>>>> 3.3.x
+.. _v3-3-2:
+
+3.3.2 - 2021-02-07
+~~~~~~~~~~~~~~~~~~
+
+* **SECURITY ISSUE:** Fixed a bug where certain sequences of ``update()`` calls
+  when symmetrically encrypting very large payloads (>2GB) could result in an
+  exsx,<<<<<<< 3.4.x
+  integer overflow, leading to buffer overflows. *CVE-2020-36242* **Update:**
+  This fix is a workaround for *CVE-2021-23840* in OpenSSL, fixed in OpenSSL
+  1.1.1j.
+  =======
+  integer overflow, leading to buffer overflows. *CVE-2020-36242*
+  >>>>>>> 3.3.x
+
+.. _v3-3-1:
+
+3.3.1 - 2020-12-09
+~~~~~~~~~~~~~~~~~~
+
+* Re-added a legacy symbol causing problems for older ``pyOpenSSL`` users.
+
+.. _v3-3:
+
+3.3 - 2020-12-08
+~~~~~~~~~~~~~~~~
+
+* **BACKWARDS INCOMPATIBLE:** Support for Python 3.5 has been removed due to
+  low usage and maintenance burden.
+* **BACKWARDS INCOMPATIBLE:** The
+  :class:`~cryptography.hazmat.primitives.ciphers.modes.GCM` and
+  :class:`~cryptography.hazmat.primitives.ciphers.aead.AESGCM` now require
+  64-bit to 1024-bit (8 byte to 128 byte) initialization vectors. This change
+  is to conform with an upcoming OpenSSL release that will no longer support
+  sizes outside this window.
+* **BACKWARDS INCOMPATIBLE:** When deserializing asymmetric keys we now
+  raise ``ValueError`` rather than ``UnsupportedAlgorithm`` when an
+  unsupported cipher is used. This change is to conform with an upcoming
+  OpenSSL release that will no longer distinguish between error types.
+* **BACKWARDS INCOMPATIBLE:** We no longer allow loading of finite field
+  Diffie-Hellman parameters of less than 512 bits in length. This change is to
+  conform with an upcoming OpenSSL release that no longer supports smaller
+  sizes. These keys were already wildly insecure and should not have been used
+  in any application outside of testing.
+* Updated Windows, macOS, and ``manylinux`` wheels to be compiled with
+  OpenSSL 1.1.1i.
+* Python 2 support is deprecated in ``cryptography``. This is the last release
+  that will support Python 2.
+* Added the
+  :meth:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey.recover_data_from_signature`
+  function to
+  :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`
+  for recovering the signed data from an RSA signature.
+
+  >>>>>>> 3.3.x
 .. _v3-2-1:
 
 3.2.1 - 2020-10-27
@@ -25,6 +206,7 @@ Changelog
 * Added basic support for PKCS7 signing (including SMIME) via
   :class:`~cryptography.hazmat.primitives.serialization.pkcs7.PKCS7SignatureBuilder`.
 
+  >>>>>>> dependabot/github_actions/actions/upload-artifact-v2.2.2
 .. _v3-1-1:
 
 3.1.1 - 2020-09-22
@@ -639,9 +821,9 @@ Changelog
   :meth:`~cryptography.hazmat.primitives.ciphers.CipherContext.update_into` on
   :class:`~cryptography.hazmat.primitives.ciphers.CipherContext`.
 * Added
-  :meth:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKeyWithSerialization.private_bytes`
+  :meth:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKey.private_bytes`
   to
-  :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKeyWithSerialization`.
+  :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKey`.
 * Added
   :meth:`~cryptography.hazmat.primitives.asymmetric.dh.DHPublicKey.public_bytes`
   to
@@ -1229,23 +1411,23 @@ Changelog
   :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKeyWithSerialization`
   and deprecated ``EllipticCurvePrivateKeyWithNumbers``.
 * Added
-  :meth:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKeyWithSerialization.private_bytes`
+  :meth:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey.private_bytes`
   to
-  :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKeyWithSerialization`.
+  :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`.
 * Added
   :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKeyWithSerialization`
   and deprecated ``RSAPrivateKeyWithNumbers``.
 * Added
-  :meth:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKeyWithSerialization.private_bytes`
+  :meth:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey.private_bytes`
   to
-  :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKeyWithSerialization`.
+  :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`.
 * Added
   :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKeyWithSerialization`
   and deprecated ``DSAPrivateKeyWithNumbers``.
 * Added
-  :meth:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKeyWithSerialization.private_bytes`
+  :meth:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey.private_bytes`
   to
-  :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKeyWithSerialization`.
+  :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`.
 * Added
   :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKeyWithSerialization`
   and deprecated ``RSAPublicKeyWithNumbers``.
@@ -1289,7 +1471,7 @@ Changelog
   were moved from ``cryptography.hazmat.primitives.interfaces`` to
   ``cryptography.hazmat.primitives.asymmetric``.
 * :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAParameters`,
-  :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAParametersWithNumbers`,
+  ``DSAParametersWithNumbers``,
   :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`,
   ``DSAPrivateKeyWithNumbers``,
   :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey` and
@@ -1584,5 +1766,5 @@ Changelog
 
 * Initial release.
 
-.. _`master`: https://github.com/pyca/cryptography/
+.. _`main`: https://github.com/pyca/cryptography/
 .. _`cffi`: https://cffi.readthedocs.io/

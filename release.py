@@ -2,8 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
-
 import getpass
 import glob
 import io
@@ -92,7 +90,7 @@ def build_github_actions_wheels(token, version):
             "Accept": "application/vnd.github.v3+json",
             "Authorization": "token {}".format(token),
         },
-        data=json.dumps({"ref": "master", "inputs": {"version": version}}),
+        data=json.dumps({"ref": "main", "inputs": {"version": version}}),
     )
     response.raise_for_status()
 

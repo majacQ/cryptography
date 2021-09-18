@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import os
 import sys
@@ -22,17 +21,15 @@ def _get_openssl_libraries(platform):
         return []
     # OpenSSL goes by a different library name on different operating systems.
     if platform == "win32" and compiler_type() == "msvc":
-        windows_link_legacy_openssl = os.environ.get(
-            "CRYPTOGRAPHY_WINDOWS_LINK_LEGACY_OPENSSL", None
-        )
-        if windows_link_legacy_openssl is None:
-            # Link against the 1.1.0 names
-            # CRYPTOGRAPHY_OPENSSL_110_OR_GREATER
-            libs = ["libssl", "libcrypto"]
-        else:
-            # Link against the 1.0.2 and lower names
-            libs = ["libeay32", "ssleay32"]
-        return libs + ["advapi32", "crypt32", "gdi32", "user32", "ws2_32"]
+        return [
+            "libssl",
+            "libcrypto",
+            "advapi32",
+            "crypt32",
+            "gdi32",
+            "user32",
+            "ws2_32",
+        ]
     else:
         # darwin, linux, mingw all use this path
         # In some circumstances, the order in which these libs are
@@ -53,10 +50,9 @@ def _extra_compile_args(platform):
     We set -Wconversion args here so that we only do Wconversion checks on the
     code we're compiling and not on cffi itself (as passing -Wconversion in
     CFLAGS would do). We set no error on sign conversion because some
-    function signatures in OpenSSL have changed from long -> unsigned long
-    in the past. Since that isn't a precision issue we don't care.
-    When we drop support for CRYPTOGRAPHY_OPENSSL_LESS_THAN_110 we can
-    revisit this.
+    function signatures in LibreSSL differ from OpenSSL have changed on long
+    vs. unsigned long in the past. Since that isn't a precision issue we don't
+    care.
     """
     # make sure the compiler used supports the flags to be added
     is_gcc = False
@@ -119,13 +115,6 @@ ffi = build_ffi_for_binding(
         "callbacks",
     ],
     libraries=_get_openssl_libraries(sys.platform),
-    # These args are passed here so that we only do Wconversion checks on the
-    # code we're compiling and not on cffi itself (as passing -Wconversion in
-    # CFLAGS would do). We set no error on sign convesrion because some
-    # function signatures in OpenSSL have changed from long -> unsigned long
-    # in the past. Since that isn't a precision issue we don't care.
-    # When we drop support for CRYPTOGRAPHY_OPENSSL_LESS_THAN_110 we can
-    # revisit this.
     extra_compile_args=_extra_compile_args(sys.platform),
     extra_link_args=extra_link_args(compiler_type()),
 )

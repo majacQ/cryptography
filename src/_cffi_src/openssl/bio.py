@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 INCLUDES = """
 #include <openssl/bio.h>
@@ -41,10 +40,4 @@ void BIO_clear_retry_flags(BIO *);
 """
 
 CUSTOMIZATIONS = """
-#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_110 && !CRYPTOGRAPHY_IS_LIBRESSL
-int BIO_up_ref(BIO *b) {
-    CRYPTO_add(&b->references, 1, CRYPTO_LOCK_BIO);
-    return 1;
-}
-#endif
 """

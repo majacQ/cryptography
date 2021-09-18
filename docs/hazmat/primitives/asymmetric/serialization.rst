@@ -143,6 +143,10 @@ all begin with ``-----BEGIN {format}-----`` and end with ``-----END
         :class:`~cryptography.hazmat.backends.interfaces.PEMSerializationBackend`.
 
     :returns: One of
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x25519.X25519PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x448.X448PrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKey`,
@@ -158,8 +162,7 @@ all begin with ``-----BEGIN {format}-----`` and end with ``-----END
         password was supplied.
 
     :raises cryptography.exceptions.UnsupportedAlgorithm: If the serialized key
-        is of a type that is not supported by the backend or if the key is
-        encrypted with a symmetric cipher that is not supported by the backend.
+        is of a type that is not supported by the backend.
 
 .. function:: load_pem_public_key(data, backend=None)
 
@@ -183,6 +186,10 @@ all begin with ``-----BEGIN {format}-----`` and end with ``-----END
 
 
     :returns: One of
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x25519.X25519PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x448.X448PublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPublicKey`,
@@ -253,6 +260,10 @@ the rest.
         :class:`~cryptography.hazmat.backends.interfaces.DERSerializationBackend`.
 
     :returns: One of
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x25519.X25519PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x448.X448PrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKey`,
@@ -267,9 +278,8 @@ the rest.
         not encrypted. Or if the key was encrypted but no
         password was supplied.
 
-    :raises cryptography.exceptions.UnsupportedAlgorithm: If the serialized key is of a type that
-        is not supported by the backend or if the key is encrypted with a
-        symmetric cipher that is not supported by the backend.
+    :raises cryptography.exceptions.UnsupportedAlgorithm: If the serialized key
+        is of a type that is not supported by the backend.
 
     .. doctest::
 
@@ -293,6 +303,10 @@ the rest.
         :class:`~cryptography.hazmat.backends.interfaces.DERSerializationBackend`.
 
     :returns: One of
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x25519.X25519PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed448.Ed448PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.x448.X448PublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`,
         :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPublicKey`,
@@ -434,11 +448,11 @@ An example ECDSA key in OpenSSH format::
         depending on the key's type.
 
     :returns: One of
-        :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`,
-        :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`,
-        :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`
+        :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`
         or
-        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey`,
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey`,
         depending on the contents of ``data``.
 
     :raises ValueError: If the OpenSSH data could not be properly decoded,
@@ -497,6 +511,11 @@ file suffix.
         reasons only.
 
     Serialize a PKCS12 blob.
+
+    .. note::
+
+        Due to `a bug in Firefox`_ it's not possible to load unencrypted PKCS12
+        blobs in Firefox.
 
     :param name: The friendly name to use for the supplied certificate and key.
     :type name: bytes
@@ -921,15 +940,14 @@ Serialization Encryption Types
 
     Objects with this interface are usable as encryption types with methods
     like ``private_bytes`` available on
-    :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKeyWithSerialization`
+    :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`
     ,
-    :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKeyWithSerialization`
-    , :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKeyWithSerialization`
+    :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`
+    , :class:`~cryptography.hazmat.primitives.asymmetric.dh.DHPrivateKey`
     and
-    :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKeyWithSerialization`.
+    :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`.
     All other classes in this section represent the available choices for
-    encryption and have this interface. They are used with
-    :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKeyWithSerialization.private_bytes`.
+    encryption and have this interface.
 
 .. class:: BestAvailableEncryption(password)
 
@@ -944,6 +962,7 @@ Serialization Encryption Types
     Do not encrypt.
 
 
+.. _`a bug in Firefox`: https://bugzilla.mozilla.org/show_bug.cgi?id=773111
 .. _`PKCS3`: https://www.teletrust.de/fileadmin/files/oid/oid_pkcs-3v1-4.pdf
 .. _`SEC 1 v2.0`: https://www.secg.org/sec1-v2.pdf
 .. _`PROTOCOL.key`: https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.key

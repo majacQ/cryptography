@@ -85,10 +85,8 @@ There is also support for :func:`loading public keys in the SSH format
 Key serialization
 ~~~~~~~~~~~~~~~~~
 
-If you have a private key that you've loaded or generated which implements the
-:class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKeyWithSerialization`
-interface you can use
-:meth:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKeyWithSerialization.private_bytes`
+If you have a private key that you've loaded you can use
+:meth:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey.private_bytes`
 to serialize the key.
 
 .. doctest::
@@ -342,6 +340,11 @@ Padding
     :class:`OAEP` should be preferred for encryption and :class:`PSS` should be
     preferred for signatures.
 
+    .. warning::
+
+        Our implementation of PKCS1 v1.5 decryption is not constant time. See
+        :doc:`/limitations` for details.
+
 
 .. function:: calculate_max_pss_salt_length(key, hash_algorithm)
 
@@ -531,9 +534,7 @@ Key interfaces
 
     .. versionadded:: 0.2
 
-    An `RSA`_ private key. An RSA private key that is not an
-    :term:`opaque key` also implements :class:`RSAPrivateKeyWithSerialization`
-    to provide serialization methods.
+    An `RSA`_ private key.
 
     .. method:: decrypt(ciphertext, padding)
 
@@ -582,15 +583,6 @@ Key interfaces
 
         :return bytes: Signature.
 
-
-.. class:: RSAPrivateKeyWithSerialization
-
-    .. versionadded:: 0.8
-
-    This interface contains additional methods relating to serialization.
-    Any object with this interface also has all the methods from
-    :class:`RSAPrivateKey`.
-
     .. method:: private_numbers()
 
         Create a
@@ -630,6 +622,13 @@ Key interfaces
         :return bytes: Serialized key.
 
 
+.. class:: RSAPrivateKeyWithSerialization
+
+    .. versionadded:: 0.8
+
+    Alias for :class:`RSAPrivateKey`.
+
+
 .. class:: RSAPublicKey
 
     .. versionadded:: 0.2
@@ -648,6 +647,10 @@ Key interfaces
             :class:`~cryptography.hazmat.primitives.asymmetric.padding.AsymmetricPadding`.
 
         :return bytes: Encrypted data.
+
+        :raises ValueError: The data could not be encrypted. One possible cause
+            is if ``data`` is too large; RSA keys can only encrypt data that
+            is smaller than the key size.
 
     .. attribute:: key_size
 
@@ -709,6 +712,55 @@ Key interfaces
         :raises cryptography.exceptions.InvalidSignature: If the signature does
             not validate.
 
+    .. method:: recover_data_from_signature(signature, padding, algorithm)
+
+        .. versionadded:: 3.3
+
+        Recovers the signed data from the signature. The data typically contains
+        the digest of the original message string. The ``padding`` and
+        ``algorithm`` parameters must match the ones used when the signature
+        was created for the recovery to succeed.
+
+        The ``algorithm`` parameter can also be set to ``None`` to recover all
+        the data present in the signature, without regard to its format or the
+        hash algorithm used for its creation.
+
+        For
+        :class:`~cryptography.hazmat.primitives.asymmetric.padding.PKCS1v15`
+        padding, this method returns the data after removing the padding layer.
+        For standard signatures the data contains the full ``DigestInfo``
+        structure.  For non-standard signatures, any data can be returned,
+        including zero-length data.
+
+        Normally you should use the
+        :meth:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey.verify`
+        function to validate the signature. But for some non-standard signature
+        formats you may need to explicitly recover and validate the signed
+        data. The following are some examples:
+
+        - Some old Thawte and Verisign timestamp certificates without ``DigestInfo``.
+        - Signed MD5/SHA1 hashes in TLS 1.1 or earlier (:rfc:`4346`, section 4.7).
+        - IKE version 1 signatures without ``DigestInfo`` (:rfc:`2409`, section 5.1).
+
+        :param bytes signature: The signature.
+
+        :param padding: An instance of
+            :class:`~cryptography.hazmat.primitives.asymmetric.padding.AsymmetricPadding`.
+            Recovery is only supported with some of the padding types. (Currently
+            only with
+            :class:`~cryptography.hazmat.primitives.asymmetric.padding.PKCS1v15`).
+
+        :param algorithm: An instance of
+            :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`.
+            Can be ``None`` to return the all the data present in the signature.
+
+        :return bytes: The signed data.
+
+        :raises cryptography.exceptions.InvalidSignature: If the signature is
+            invalid.
+
+        :raises cryptography.exceptions.UnsupportedAlgorithm: If signature
+            data recovery is not supported with the provided ``padding`` type.
 
 .. class:: RSAPublicKeyWithSerialization
 

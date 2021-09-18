@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import datetime
 
@@ -11,13 +10,14 @@ import pytest
 import pytz
 
 from cryptography import x509
-from cryptography.hazmat.backends.interfaces import X509Backend
 
 
 class TestRevokedCertificateBuilder(object):
     def test_serial_number_must_be_integer(self):
         with pytest.raises(TypeError):
-            x509.RevokedCertificateBuilder().serial_number("notanx509name")
+            x509.RevokedCertificateBuilder().serial_number(
+                "notanx509name"  # type: ignore[arg-type]
+            )
 
     def test_serial_number_must_be_non_negative(self):
         with pytest.raises(ValueError):
@@ -27,7 +27,6 @@ class TestRevokedCertificateBuilder(object):
         with pytest.raises(ValueError):
             x509.RevokedCertificateBuilder().serial_number(0)
 
-    @pytest.mark.requires_backend_interface(interface=X509Backend)
     def test_minimal_serial_number(self, backend):
         revocation_date = datetime.datetime(2002, 1, 1, 12, 1)
         builder = (
@@ -39,7 +38,6 @@ class TestRevokedCertificateBuilder(object):
         revoked_certificate = builder.build(backend)
         assert revoked_certificate.serial_number == 1
 
-    @pytest.mark.requires_backend_interface(interface=X509Backend)
     def test_biggest_serial_number(self, backend):
         revocation_date = datetime.datetime(2002, 1, 1, 12, 1)
         builder = (
@@ -60,7 +58,6 @@ class TestRevokedCertificateBuilder(object):
         with pytest.raises(ValueError):
             builder.serial_number(4)
 
-    @pytest.mark.requires_backend_interface(interface=X509Backend)
     def test_aware_revocation_date(self, backend):
         time = datetime.datetime(2012, 1, 16, 22, 43)
         tz = pytz.timezone("US/Pacific")
@@ -78,7 +75,9 @@ class TestRevokedCertificateBuilder(object):
 
     def test_revocation_date_invalid(self):
         with pytest.raises(TypeError):
-            x509.RevokedCertificateBuilder().revocation_date("notadatetime")
+            x509.RevokedCertificateBuilder().revocation_date(
+                "notadatetime"  # type: ignore[arg-type]
+            )
 
     def test_revocation_date_before_1950(self):
         with pytest.raises(ValueError):
@@ -106,10 +105,9 @@ class TestRevokedCertificateBuilder(object):
     def test_add_invalid_extension(self):
         with pytest.raises(TypeError):
             x509.RevokedCertificateBuilder().add_extension(
-                "notanextension", False
+                "notanextension", False  # type: ignore[arg-type]
             )
 
-    @pytest.mark.requires_backend_interface(interface=X509Backend)
     def test_no_serial_number(self, backend):
         builder = x509.RevokedCertificateBuilder().revocation_date(
             datetime.datetime(2002, 1, 1, 12, 1)
@@ -118,14 +116,12 @@ class TestRevokedCertificateBuilder(object):
         with pytest.raises(ValueError):
             builder.build(backend)
 
-    @pytest.mark.requires_backend_interface(interface=X509Backend)
     def test_no_revocation_date(self, backend):
         builder = x509.RevokedCertificateBuilder().serial_number(3)
 
         with pytest.raises(ValueError):
             builder.build(backend)
 
-    @pytest.mark.requires_backend_interface(interface=X509Backend)
     def test_create_revoked(self, backend):
         serial_number = 333
         revocation_date = datetime.datetime(2002, 1, 1, 12, 1)
@@ -145,10 +141,9 @@ class TestRevokedCertificateBuilder(object):
         [
             x509.InvalidityDate(datetime.datetime(2015, 1, 1, 0, 0)),
             x509.CRLReason(x509.ReasonFlags.ca_compromise),
-            x509.CertificateIssuer([x509.DNSName(u"cryptography.io")]),
+            x509.CertificateIssuer([x509.DNSName("cryptography.io")]),
         ],
     )
-    @pytest.mark.requires_backend_interface(interface=X509Backend)
     def test_add_extensions(self, backend, extension):
         serial_number = 333
         revocation_date = datetime.datetime(2002, 1, 1, 12, 1)
@@ -169,7 +164,6 @@ class TestRevokedCertificateBuilder(object):
         assert ext.critical is False
         assert ext.value == extension
 
-    @pytest.mark.requires_backend_interface(interface=X509Backend)
     def test_add_multiple_extensions(self, backend):
         serial_number = 333
         revocation_date = datetime.datetime(2002, 1, 1, 12, 1)
@@ -177,7 +171,7 @@ class TestRevokedCertificateBuilder(object):
             datetime.datetime(2015, 1, 1, 0, 0)
         )
         certificate_issuer = x509.CertificateIssuer(
-            [x509.DNSName(u"cryptography.io")]
+            [x509.DNSName("cryptography.io")]
         )
         crl_reason = x509.CRLReason(x509.ReasonFlags.aa_compromise)
         builder = (
