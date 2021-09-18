@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python.
 
 # This file is dual licensed under the terms of the Apache License, Version
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
@@ -55,7 +55,11 @@ else:
     setup_requirements.append("cffi>=1.7,!=1.11.3")
 
 test_requirements = [
+  <<<<<<< 2.0.x
+    "pytest>=2.9.0,!=3.2.0",
+  =======
     "pytest>=3.2.1,!=3.3.0",
+  >>>>>>> 2.2.x
     "pretend",
     "iso8601",
     "pytz",

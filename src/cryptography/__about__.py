@@ -1,6 +1,6 @@
-# This file is dual licensed under the terms of the Apache License, Version
-# 2.0, and the BSD License. See the LICENSE file in the root of this repository
-# for complete details.
+This file is dual licensed under the terms of the Apache License, Version
+2.0, and the BSD License. See the LICENSE file in the root of this repository
+for complete details.
 
 from __future__ import absolute_import, division, print_function
 
@@ -14,10 +14,15 @@ __summary__ = ("cryptography is a package which provides cryptographic recipes"
                " and primitives to Python developers.")
 __uri__ = "https://github.com/pyca/cryptography"
 
+  <<<<<<< 2.0.x
+__version__ = "2.0.3"
+  =======
 __version__ = "2.2.2"
+  >>>>>>> 2.2.x
 
 __author__ = "The cryptography developers"
 __email__ = "cryptography-dev@python.org"
 
 __license__ = "BSD or Apache License, Version 2.0"
 __copyright__ = "Copyright 2013-2017 {0}".format(__author__)
+ 
